@@ -36,7 +36,7 @@ func main() {
 	cmd := cmd.NewKubectlCommand(cmdutil.NewFactory(nil), os.Stdin, os.Stdout, os.Stderr)
 	l, err := readline.NewEx(&readline.Config{
 		Prompt:       ">>> ",
-		AutoComplete: Completer(cmd),
+		AutoComplete: &CommandCompleter{cmd},
 	})
 	if err != nil {
 		panic(err)
@@ -61,38 +61,64 @@ func main() {
 	}
 }
 
-func Completer(cmd *cobra.Command) readline.AutoCompleter {
-	return readline.NewPrefixCompleter(mapPrefixes(cmd.Commands())...)
+type CommandCompleter struct {
+	Root *cobra.Command
 }
 
-func mapPrefixes(cmds []*cobra.Command) []readline.PrefixCompleterInterface {
-	prefixes := make([]readline.PrefixCompleterInterface, len(cmds))
-	for i, cmd := range cmds {
-		prefixes[i] = prefixForCommand(cmd)
+func (cc *CommandCompleter) Do(line []rune, pos int) (newLine [][]rune, offset int) {
+	cmd := cc.Root
+	index := strings.LastIndex(string(line[:pos]), " ") + 1
+	word := string(line[:pos])
+	if index > 0 {
+		word = word[index:pos]
+		var err error
+		cmd, _, err = cc.Root.Find(strings.Split(string(line), " "))
+		if err != nil {
+			return
+		}
+	}
+	for _, completion := range completions(word, cmd) {
+		if len(word) >= len(completion) {
+			if len(word) == len(completion) {
+				newLine = append(newLine, []rune{' '})
+			} else {
+				newLine = append(newLine, []rune(completion))
+			}
+			offset = len(completion)
+		} else {
+			newLine = append(newLine, []rune(completion)[len(word):])
+			offset = len(word)
+		}
+
+	}
+	return
+}
+
+func completions(prefix string, cmd *cobra.Command) (completions []string) {
+	if strings.HasPrefix(prefix, "-") {
+		completions = flags(cmd)
+	} else {
+		completions = subCommands(cmd)
+		if len(completions) == 0 {
+			completions = resourceTypes(cmd)
+		}
+	}
+	return
+}
+
+func subCommands(cmd *cobra.Command) []string {
+	prefixes := make([]string, len(cmd.Commands()))
+	for i, c := range cmd.Commands() {
+		prefixes[i] = c.Name()
 	}
 	return prefixes
 }
 
-func prefixForCommand(cmd *cobra.Command) readline.PrefixCompleterInterface {
-	prefixes := prefixesForSubcommands(cmd)
-	prefixes = append(prefixes, prefixesForResourceTypes(cmd)...)
-	prefixes = append(prefixes, prefixesForFlags(cmd)...)
-	return readline.PcItem(cmd.Name(), prefixes...)
+func resourceTypes(cmd *cobra.Command) []string {
+	return cmd.ValidArgs
 }
 
-func prefixesForSubcommands(cmd *cobra.Command) []readline.PrefixCompleterInterface {
-	return mapPrefixes(cmd.Commands())
-}
-
-func prefixesForResourceTypes(cmd *cobra.Command) []readline.PrefixCompleterInterface {
-	prefixes := make([]readline.PrefixCompleterInterface, len(cmd.ValidArgs))
-	for i, arg := range cmd.ValidArgs {
-		prefixes[i] = readline.PcItem(arg)
-	}
-	return prefixes
-}
-
-func prefixesForFlags(cmd *cobra.Command) []readline.PrefixCompleterInterface {
+func flags(cmd *cobra.Command) []string {
 	flags := []string{}
 	fn := func(f *pflag.Flag) {
 		flag := "--" + f.Name
@@ -103,15 +129,5 @@ func prefixesForFlags(cmd *cobra.Command) []readline.PrefixCompleterInterface {
 	}
 	cmd.NonInheritedFlags().VisitAll(fn)
 	cmd.InheritedFlags().VisitAll(fn)
-
-	prefixes := make([]readline.PrefixCompleterInterface, len(flags))
-	for i := range flags {
-		// we create enough completers to support including
-		// one of each flag, which is a little weird, i admit
-		prefixes[i] = readline.PcItemDynamic(func(line string) []string {
-			// TODO: omit flags already present in line
-			return flags
-		})
-	}
-	return prefixes
+	return flags
 }
