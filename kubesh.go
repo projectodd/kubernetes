@@ -22,7 +22,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	readline "gopkg.in/readline.v1"
+	"github.com/chzyer/readline"
+	"github.com/vivekn/autocomplete"
 
 	"k8s.io/kubernetes/pkg/kubectl/cmd"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
@@ -103,7 +104,12 @@ func completions(prefix string, cmd *cobra.Command) (completions []string) {
 			completions = resourceTypes(cmd)
 		}
 	}
-	return
+	trie := trie.NewTrie()
+	for _, c := range completions {
+		trie.Insert(c)
+	}
+	completions, _ = trie.AutoComplete(prefix)
+	return 
 }
 
 func subCommands(cmd *cobra.Command) []string {
