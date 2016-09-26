@@ -91,6 +91,9 @@ func resourceTypes(cmd *cobra.Command) []string {
 func flags(cmd *cobra.Command) []string {
 	flags := []string{}
 	fn := func(f *pflag.Flag) {
+		if len(f.Deprecated) > 0 || f.Hidden {
+			return
+		}
 		flag := "--" + f.Name
 		if len(f.NoOptDefVal) == 0 {
 			flag += "="
