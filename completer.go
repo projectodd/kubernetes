@@ -15,11 +15,19 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
+	"fmt"
+	"io/ioutil"
+	"os"
 	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+
+	kubecmd "k8s.io/kubernetes/pkg/kubectl/cmd"
+	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
 )
 
 type CommandCompleter struct {
@@ -30,15 +38,22 @@ func (cc *CommandCompleter) Do(line []rune, pos int) (newLine [][]rune, offset i
 	cmd := cc.Root
 	index := strings.LastIndex(string(line[:pos]), " ") + 1
 	word := string(line[:pos])
+	var nouns []string
 	if index > 0 {
 		word = word[index:pos]
+		var args []string
 		var err error
-		cmd, _, err = cc.Root.Find(strings.Split(string(line), " "))
+		cmd, args, err = cc.Root.Find(strings.Split(string(line), " "))
 		if err != nil {
 			return
 		}
+		for _, arg := range args {
+			if !strings.HasPrefix(arg, "-") {
+				nouns = append(nouns, arg)
+			}
+		}
 	}
-	for _, completion := range completions(word, cmd) {
+	for _, completion := range completions(word, cmd, nouns) {
 		if len(word) >= len(completion) {
 			if len(word) == len(completion) {
 				newLine = append(newLine, []rune{' '})
@@ -55,14 +70,18 @@ func (cc *CommandCompleter) Do(line []rune, pos int) (newLine [][]rune, offset i
 	return
 }
 
-func completions(prefix string, cmd *cobra.Command) []string {
+func completions(prefix string, cmd *cobra.Command, nouns []string) []string {
 	candidates := []string{}
 	if strings.HasPrefix(prefix, "-") {
 		candidates = flags(cmd)
 	} else {
 		candidates = subCommands(cmd)
 		if len(candidates) == 0 {
-			candidates = resourceTypes(cmd)
+			if len(nouns) > 1 {
+				candidates = resources(nouns[0])
+			} else {
+				candidates = resourceTypes(cmd)
+			}
 		}
 	}
 	return complete(prefix, candidates)
@@ -89,6 +108,25 @@ func resourceTypes(cmd *cobra.Command) []string {
 	args := cmd.ValidArgs
 	sort.Strings(args)
 	return args
+}
+
+func resources(resourceType string) []string {
+	// TODO: Replace this with something abstracted out for reuse
+	// between here and setContextCommand in kubesh.go
+	var buff bytes.Buffer
+	writer := bufio.NewWriter(&buff)
+	cmd := kubecmd.NewKubectlCommand(cmdutil.NewFactory(nil), os.Stdin, writer, ioutil.Discard)
+	callArgs := []string{"get", resourceType, "--output=template",
+		"--template={{ range .items }}{{ .metadata.name }} {{ end }}"}
+	cmd.SetArgs(callArgs)
+	cmd.Execute()
+	writer.Flush()
+	content, err := ioutil.ReadAll(bufio.NewReader(&buff))
+	if err != nil {
+		fmt.Println(err)
+		return []string{}
+	}
+	return strings.Split(strings.TrimSpace(string(content)), " ")
 }
 
 func flags(cmd *cobra.Command) []string {
