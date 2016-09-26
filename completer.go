@@ -35,7 +35,7 @@ type CommandCompleter struct {
 }
 
 func (cc *CommandCompleter) Do(line []rune, pos int) (newLine [][]rune, offset int) {
-	cmd := cc.Root
+	cmd, args := cc.Root, []string{}
 	word := string(line[:pos])
 	lastSpace := strings.LastIndex(string(line[:pos]), " ") + 1
 	lastComma := strings.LastIndex(string(line[:pos]), ",") + 1
@@ -50,13 +50,8 @@ func (cc *CommandCompleter) Do(line []rune, pos int) (newLine [][]rune, offset i
 		if err != nil {
 			return
 		}
-		for _, arg := range args {
-			if !strings.HasPrefix(arg, "-") {
-				nouns = append(nouns, arg)
-			}
-		}
 	}
-	for _, completion := range completions(word, cmd, nouns) {
+	for _, completion := range completions(word, cmd, args) {
 		if len(word) >= len(completion) {
 			if len(word) == len(completion) {
 				newLine = append(newLine, []rune{' '})
@@ -73,7 +68,7 @@ func (cc *CommandCompleter) Do(line []rune, pos int) (newLine [][]rune, offset i
 	return
 }
 
-func completions(prefix string, cmd *cobra.Command, nouns []string) []string {
+func completions(prefix string, cmd *cobra.Command, args []string) []string {
 	candidates := []string{}
 	if strings.HasPrefix(prefix, "-") {
 		candidates = flags(cmd)
@@ -81,19 +76,18 @@ func completions(prefix string, cmd *cobra.Command, nouns []string) []string {
 		candidates = subCommands(cmd)
 		if len(candidates) == 0 {
 			switch cmd.Name() {
-			case "get", "describe", "delete", "label", "stop", "edit", "patch",
-				"annotate", "expose", "scale", "autoscale", "taint", "rollout":
-				if len(nouns) > 1 {
-					candidates = resources(nouns[0])
-				} else {
-					candidates = resourceTypes(cmd)
-				}
 			case "logs", "attach", "exec", "port-forward":
 				candidates = resources("pods")
 			case "rolling-update":
 				candidates = resources("rc")
 			case "cordon", "uncordon", "drain":
 				candidates = resources("node")
+			default:
+				if t := resourceType(args); len(t) > 0 {
+					candidates = resources(t)
+				} else {
+					candidates = resourceTypes(cmd)
+				}
 			}
 		}
 	}
@@ -112,7 +106,7 @@ func complete(prefix string, candidates []string) (results []string) {
 func subCommands(cmd *cobra.Command) []string {
 	prefixes := make([]string, len(cmd.Commands()))
 	for i, c := range cmd.Commands() {
-		prefixes[i] = c.Name()
+		prefixes[i] = c.Name() + " "
 	}
 	return prefixes
 }
@@ -121,6 +115,23 @@ func resourceTypes(cmd *cobra.Command) []string {
 	args := cmd.ValidArgs
 	sort.Strings(args)
 	return args
+}
+
+// resourceType returns the resource type identified in the args,
+// which could be a comma-delimited list of multiple types
+func resourceType(args []string) string {
+	// TODO: something more sophisticated?
+	x := []string{}
+	for _, s := range args {
+		if !strings.HasPrefix(s, "-") {
+			x = append(x, s)
+		}
+	}
+	if len(x) > 1 {
+		return x[0]
+	} else {
+		return ""
+	}
 }
 
 func resources(resourceType string) []string {
@@ -139,7 +150,13 @@ func resources(resourceType string) []string {
 		fmt.Println(err)
 		return []string{}
 	}
-	return strings.Split(strings.TrimSpace(string(content)), " ")
+	// wtf does Split return a non-empty slice for ""?
+	result := strings.TrimSpace(string(content))
+	if len(result) > 0 {
+		return strings.Split(result, " ")
+	} else {
+		return []string{}
+	}
 }
 
 func flags(cmd *cobra.Command) []string {
@@ -151,6 +168,8 @@ func flags(cmd *cobra.Command) []string {
 		flag := "--" + f.Name
 		if len(f.NoOptDefVal) == 0 {
 			flag += "="
+		} else {
+			flag += " "
 		}
 		flags = append(flags, flag)
 	}
