@@ -80,10 +80,20 @@ func completions(prefix string, cmd *cobra.Command, nouns []string) []string {
 	} else {
 		candidates = subCommands(cmd)
 		if len(candidates) == 0 {
-			if len(nouns) > 1 {
-				candidates = resources(nouns[0])
-			} else {
-				candidates = resourceTypes(cmd)
+			switch cmd.Name() {
+			case "get", "describe", "delete", "label", "stop", "edit", "patch",
+				"annotate", "expose", "scale", "autoscale", "taint", "rollout":
+				if len(nouns) > 1 {
+					candidates = resources(nouns[0])
+				} else {
+					candidates = resourceTypes(cmd)
+				}
+			case "logs", "attach", "exec", "port-forward":
+				candidates = resources("pods")
+			case "rolling-update":
+				candidates = resources("rc")
+			case "cordon", "uncordon", "drain":
+				candidates = resources("node")
 			}
 		}
 	}
