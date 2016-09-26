@@ -15,6 +15,7 @@
 package main
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -85,7 +86,9 @@ func subCommands(cmd *cobra.Command) []string {
 }
 
 func resourceTypes(cmd *cobra.Command) []string {
-	return cmd.ValidArgs
+	args := cmd.ValidArgs
+	sort.Strings(args)
+	return args
 }
 
 func flags(cmd *cobra.Command) []string {
