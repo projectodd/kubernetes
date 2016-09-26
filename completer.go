@@ -19,7 +19,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"github.com/vivekn/autocomplete"
 )
 
 type CommandCompleter struct {
@@ -55,20 +54,25 @@ func (cc *CommandCompleter) Do(line []rune, pos int) (newLine [][]rune, offset i
 	return
 }
 
-func completions(prefix string, cmd *cobra.Command) (completions []string) {
+func completions(prefix string, cmd *cobra.Command) []string {
+	candidates := []string{}
 	if strings.HasPrefix(prefix, "-") {
-		completions = flags(cmd)
+		candidates = flags(cmd)
 	} else {
-		completions = subCommands(cmd)
-		if len(completions) == 0 {
-			completions = resourceTypes(cmd)
+		candidates = subCommands(cmd)
+		if len(candidates) == 0 {
+			candidates = resourceTypes(cmd)
 		}
 	}
-	trie := trie.NewTrie()
-	for _, c := range completions {
-		trie.Insert(c)
+	return complete(prefix, candidates)
+}
+
+func complete(prefix string, candidates []string) (results []string) {
+	for _, s := range candidates {
+		if strings.HasPrefix(s, prefix) {
+			results = append(results, s)
+		}
 	}
-	completions, _ = trie.AutoComplete(prefix)
 	return
 }
 
