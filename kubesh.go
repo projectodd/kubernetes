@@ -15,12 +15,8 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -29,6 +25,7 @@ import (
 
 	"k8s.io/kubernetes/pkg/kubectl/cmd"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
+	"k8s.io/kubernetes/pkg/kubectl/resource"
 )
 
 type InternalCommand func(*kubesh, []string) error
@@ -119,39 +116,22 @@ func setContextCommand(sh *kubesh, args []string) error {
 		return nil
 	}
 
-	typeOnly := len(args) == 2
-
-	var buff bytes.Buffer
-	writer := bufio.NewWriter(&buff)
-	cmd := cmd.NewKubectlCommand(sh.factory, os.Stdin, writer, os.Stderr)
-	callArgs := []string{"get", "--output=json"}
-	callArgs = append(callArgs, args[1:]...)
-
-	cmd.SetArgs(callArgs)
-	cmd.Execute()
-
-	writer.Flush()
-	content, err := ioutil.ReadAll(bufio.NewReader(&buff))
+	resources, err := sh.lookupResource(args[1:])
 	if err != nil {
-		fmt.Println(err)
 
-		return nil
+		return err
 	}
 
-	var result map[string]interface{}
-	json.Unmarshal(content, &result)
+	typeOnly := len(args) == 2
 
-	if typeOnly {
-		// this is fucking disgusting
-		// reads {"items": [{"kind": x}]}
-		typeName := result["items"].([]interface{})[0].(map[string]interface{})["kind"].(string)
-		sh.context = []string{strings.ToLower(typeName)}
-	} else {
-		// equally fucking disgusting
-		// reads {"kind": x, "metadata": {"name": y}}
-		typeName := result["kind"].(string)
-		resourceName := result["metadata"].(map[string]interface{})["name"].(string)
-		sh.context = []string{strings.ToLower(typeName), resourceName}
+	if len(resources) > 0 {
+		res := resources[0]
+		typeName := res["type"]
+		if typeOnly {
+			sh.context = []string{typeName}
+		} else {
+			sh.context = []string{typeName, res["name"]}
+		}
 	}
 
 	sh.rl.SetPrompt(prompt(sh.context))
@@ -161,4 +141,45 @@ func setContextCommand(sh *kubesh, args []string) error {
 
 func prompt(context []string) string {
 	return strings.Join(context, ":") + "> "
+}
+
+// takes a type, or type and resource name, returning a slice of maps of name and type for each record returned by the api
+func (sh *kubesh) lookupResource(args []string) ([]map[string]string, error) {
+	cmdNamespace, _, err := sh.factory.DefaultNamespace()
+	if err != nil {
+
+		return nil, err
+	}
+
+	mapper, typer := sh.factory.Object()
+	r := resource.NewBuilder(mapper, typer, resource.ClientMapperFunc(sh.factory.ClientForMapping), sh.factory.Decoder(true)).
+		NamespaceParam(cmdNamespace).
+		ResourceTypeOrNameArgs(true, args...).
+		ContinueOnError().
+		Latest().
+		Flatten().
+		Do()
+
+	if err := r.Err(); err != nil {
+		fmt.Println(err)
+
+		return nil, nil
+	}
+
+	infos, err := r.Infos()
+	if err != nil {
+		fmt.Println(err)
+
+		return nil, nil
+	}
+
+	ret := make([]map[string]string, 0, len(infos))
+	for _, i := range infos {
+		ret = append(ret, map[string]string{
+			"type": i.Mapping.Resource,
+			"name": i.Name,
+		})
+	}
+
+	return ret, nil
 }
