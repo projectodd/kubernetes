@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	"github.com/chzyer/readline"
-	"github.com/spf13/cobra"
 
 	"k8s.io/kubernetes/pkg/kubectl/cmd"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
@@ -32,7 +31,6 @@ type InternalCommand func(*kubesh, []string) error
 
 type kubesh struct {
 	factory          *cmdutil.Factory
-	cmd              *cobra.Command
 	context          []string
 	rl               *readline.Instance
 	internalCommands map[string]InternalCommand
@@ -44,10 +42,10 @@ func main() {
 	})
 
 	factory := cmdutil.NewFactory(nil)
-	cmd := cmd.NewKubectlCommand(factory, os.Stdin, os.Stdout, os.Stderr)
+	kubectl := cmd.NewKubectlCommand(factory, os.Stdin, os.Stdout, os.Stderr)
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:       "> ",
-		AutoComplete: &CommandCompleter{cmd, factory},
+		AutoComplete: &CommandCompleter{kubectl, factory},
 	})
 	if err != nil {
 		panic(err)
@@ -57,7 +55,6 @@ func main() {
 
 	sh := kubesh{
 		factory: factory,
-		cmd:     cmd,
 		rl:      rl,
 		internalCommands: map[string]InternalCommand{
 			"exit": func(_ *kubesh, _ []string) error {
@@ -90,9 +87,9 @@ func main() {
 		}
 
 		if !internal {
-			sh.cmd.ResetFlags()
-			sh.cmd.SetArgs(args)
-			sh.cmd.Execute()
+			kubectl := cmd.NewKubectlCommand(factory, os.Stdin, os.Stdout, os.Stderr)
+			kubectl.SetArgs(args)
+			kubectl.Execute()
 		}
 	}
 }
