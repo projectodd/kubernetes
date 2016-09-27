@@ -15,23 +15,18 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
-	"fmt"
-	"io/ioutil"
-	"os"
 	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	kubecmd "k8s.io/kubernetes/pkg/kubectl/cmd"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
 )
 
 type CommandCompleter struct {
-	Root *cobra.Command
+	Root    *cobra.Command
+	Factory *cmdutil.Factory
 }
 
 func (cc *CommandCompleter) Do(line []rune, pos int) (newLine [][]rune, offset int) {
@@ -51,7 +46,7 @@ func (cc *CommandCompleter) Do(line []rune, pos int) (newLine [][]rune, offset i
 			return
 		}
 	}
-	for _, completion := range completions(word, cmd, args) {
+	for _, completion := range completions(cc.Factory, word, cmd, args) {
 		if len(word) >= len(completion) {
 			if len(word) == len(completion) {
 				newLine = append(newLine, []rune{' '})
@@ -68,7 +63,7 @@ func (cc *CommandCompleter) Do(line []rune, pos int) (newLine [][]rune, offset i
 	return
 }
 
-func completions(prefix string, cmd *cobra.Command, args []string) []string {
+func completions(factory *cmdutil.Factory, prefix string, cmd *cobra.Command, args []string) []string {
 	candidates := []string{}
 	if strings.HasPrefix(prefix, "-") {
 		candidates = flags(cmd)
@@ -77,14 +72,14 @@ func completions(prefix string, cmd *cobra.Command, args []string) []string {
 		if len(candidates) == 0 {
 			switch cmd.Name() {
 			case "logs", "attach", "exec", "port-forward":
-				candidates = resources("pods")
+				candidates = resources(factory, "pods")
 			case "rolling-update":
-				candidates = resources("rc")
+				candidates = resources(factory, "rc")
 			case "cordon", "uncordon", "drain":
-				candidates = resources("node")
+				candidates = resources(factory, "node")
 			default:
 				if t := resourceType(args); len(t) > 0 {
-					candidates = resources(t)
+					candidates = resources(factory, t)
 				} else {
 					candidates = resourceTypes(cmd)
 				}
@@ -134,29 +129,18 @@ func resourceType(args []string) string {
 	}
 }
 
-func resources(resourceType string) []string {
-	// TODO: Replace this with something abstracted out for reuse
-	// between here and setContextCommand in kubesh.go
-	var buff bytes.Buffer
-	writer := bufio.NewWriter(&buff)
-	cmd := kubecmd.NewKubectlCommand(cmdutil.NewFactory(nil), os.Stdin, writer, ioutil.Discard)
-	callArgs := []string{"get", resourceType, "--output=template",
-		"--template={{ range .items }}{{ .metadata.name }} {{ end }}"}
-	cmd.SetArgs(callArgs)
-	cmd.Execute()
-	writer.Flush()
-	content, err := ioutil.ReadAll(bufio.NewReader(&buff))
-	if err != nil {
-		fmt.Println(err)
-		return []string{}
+func resources(factory *cmdutil.Factory, resourceType string) []string {
+
+	resources, err := lookupResource(factory, []string{resourceType})
+	ret := []string{}
+
+	if err == nil {
+		for _, r := range resources {
+			ret = append(ret, r["name"])
+		}
 	}
-	// wtf does Split return a non-empty slice for ""?
-	result := strings.TrimSpace(string(content))
-	if len(result) > 0 {
-		return strings.Split(result, " ")
-	} else {
-		return []string{}
-	}
+
+	return ret
 }
 
 func flags(cmd *cobra.Command) []string {

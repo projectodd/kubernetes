@@ -47,7 +47,7 @@ func main() {
 	cmd := cmd.NewKubectlCommand(factory, os.Stdin, os.Stdout, os.Stderr)
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:       "> ",
-		AutoComplete: &CommandCompleter{cmd},
+		AutoComplete: &CommandCompleter{cmd, factory},
 	})
 	if err != nil {
 		panic(err)
@@ -116,7 +116,7 @@ func setContextCommand(sh *kubesh, args []string) error {
 		return nil
 	}
 
-	resources, err := sh.lookupResource(args[1:])
+	resources, err := lookupResource(sh.factory, args[1:])
 	if err != nil {
 
 		return err
@@ -144,15 +144,15 @@ func prompt(context []string) string {
 }
 
 // takes a type, or type and resource name, returning a slice of maps of name and type for each record returned by the api
-func (sh *kubesh) lookupResource(args []string) ([]map[string]string, error) {
-	cmdNamespace, _, err := sh.factory.DefaultNamespace()
+func lookupResource(f *cmdutil.Factory, args []string) ([]map[string]string, error) {
+	cmdNamespace, _, err := f.DefaultNamespace()
 	if err != nil {
 
 		return nil, err
 	}
 
-	mapper, typer := sh.factory.Object()
-	r := resource.NewBuilder(mapper, typer, resource.ClientMapperFunc(sh.factory.ClientForMapping), sh.factory.Decoder(true)).
+	mapper, typer := f.Object()
+	r := resource.NewBuilder(mapper, typer, resource.ClientMapperFunc(f.ClientForMapping), f.Decoder(true)).
 		NamespaceParam(cmdNamespace).
 		ResourceTypeOrNameArgs(true, args...).
 		ContinueOnError().
