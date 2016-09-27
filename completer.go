@@ -15,6 +15,7 @@
 package main
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -28,6 +29,7 @@ type CommandCompleter struct {
 }
 
 func (cc *CommandCompleter) Do(line []rune, pos int) (newLine [][]rune, offset int) {
+	fmt.Printf("JC: '%s' %d\n", string(line), pos)
 	cmd, args := cc.Root, []string{}
 	word := string(line[:pos])
 	lastSpace := strings.LastIndex(string(line[:pos]), " ") + 1
