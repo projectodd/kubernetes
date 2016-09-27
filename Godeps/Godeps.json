@@ -263,6 +263,11 @@
 			"Rev": "dfb21201d9270c1082d5fb0f07f500311ff72f18"
 		},
 		{
+			"ImportPath": "github.com/chzyer/readline",
+			"Comment": "v1.4-15-g283f542",
+			"Rev": "283f5429f7723ac628cb68a44a11097c11a7a9c1"
+		},
+		{
 			"ImportPath": "github.com/cloudflare/cfssl/auth",
 			"Comment": "1.2.0",
 			"Rev": "db0d0650b6496bfe8061ec56a92edd32d8e75c30"
