@@ -44,7 +44,7 @@ func (cc *CommandCompleter) Do(line []rune, pos int) (newLine [][]rune, offset i
 			return
 		}
 	}
-	for _, completion := range completions(cc.Finder, word, cmd, args) {
+	for _, completion := range cc.completions(word, cmd, args) {
 		if len(word) >= len(completion) {
 			if len(word) == len(completion) {
 				newLine = append(newLine, []rune{' '})
@@ -61,7 +61,7 @@ func (cc *CommandCompleter) Do(line []rune, pos int) (newLine [][]rune, offset i
 	return
 }
 
-func completions(finder ResourceFinder, prefix string, cmd *cobra.Command, args []string) []string {
+func (cc *CommandCompleter) completions(prefix string, cmd *cobra.Command, args []string) []string {
 	candidates := []string{}
 	if strings.HasPrefix(prefix, "-") {
 		candidates = flags(cmd)
@@ -70,14 +70,14 @@ func completions(finder ResourceFinder, prefix string, cmd *cobra.Command, args 
 		if len(candidates) == 0 {
 			switch cmd.Name() {
 			case "logs", "attach", "exec", "port-forward":
-				candidates = resources(finder, "pods")
+				candidates = cc.resources("pods")
 			case "rolling-update":
-				candidates = resources(finder, "rc")
+				candidates = cc.resources("rc")
 			case "cordon", "uncordon", "drain":
-				candidates = resources(finder, "node")
+				candidates = cc.resources("node")
 			default:
 				if t := resourceType(args); len(t) > 0 {
-					candidates = resources(finder, t)
+					candidates = cc.resources(t)
 				} else {
 					candidates = resourceTypes(cmd)
 				}
@@ -85,6 +85,20 @@ func completions(finder ResourceFinder, prefix string, cmd *cobra.Command, args 
 		}
 	}
 	return complete(prefix, candidates)
+}
+
+func (cc *CommandCompleter) resources(resourceType string) []string {
+
+	resources, err := cc.Finder.Lookup([]string{resourceType})
+	ret := []string{}
+
+	if err == nil {
+		for _, r := range resources {
+			ret = append(ret, r.name)
+		}
+	}
+
+	return ret
 }
 
 func complete(prefix string, candidates []string) (results []string) {
@@ -104,43 +118,6 @@ func subCommands(cmd *cobra.Command) []string {
 	return prefixes
 }
 
-func resourceTypes(cmd *cobra.Command) []string {
-	args := cmd.ValidArgs
-	sort.Strings(args)
-	return args
-}
-
-// resourceType returns the resource type identified in the args,
-// which could be a comma-delimited list of multiple types
-func resourceType(args []string) string {
-	// TODO: something more sophisticated?
-	x := []string{}
-	for _, s := range args {
-		if !strings.HasPrefix(s, "-") {
-			x = append(x, s)
-		}
-	}
-	if len(x) > 1 {
-		return x[0]
-	} else {
-		return ""
-	}
-}
-
-func resources(finder ResourceFinder, resourceType string) []string {
-
-	resources, err := finder.Lookup([]string{resourceType})
-	ret := []string{}
-
-	if err == nil {
-		for _, r := range resources {
-			ret = append(ret, r.name)
-		}
-	}
-
-	return ret
-}
-
 func flags(cmd *cobra.Command) []string {
 	flags := []string{}
 	fn := func(f *pflag.Flag) {
@@ -158,4 +135,26 @@ func flags(cmd *cobra.Command) []string {
 	cmd.NonInheritedFlags().VisitAll(fn)
 	cmd.InheritedFlags().VisitAll(fn)
 	return flags
+}
+
+func resourceTypes(cmd *cobra.Command) []string {
+	args := cmd.ValidArgs
+	sort.Strings(args)
+	return args
+}
+
+// resourceType returns the resource type identified in the args,
+// which could be a comma-delimited list of multiple types
+func resourceType(args []string) string {
+	x := []string{}
+	for _, s := range args {
+		if !strings.HasPrefix(s, "-") {
+			x = append(x, s)
+		}
+	}
+	if len(x) > 1 {
+		return x[0]
+	} else {
+		return ""
+	}
 }
