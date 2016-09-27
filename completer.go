@@ -20,13 +20,11 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-
-	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
 )
 
 type CommandCompleter struct {
-	Root    *cobra.Command
-	Factory *cmdutil.Factory
+	Root   *cobra.Command
+	Finder ResourceFinder
 }
 
 func (cc *CommandCompleter) Do(line []rune, pos int) (newLine [][]rune, offset int) {
@@ -46,7 +44,7 @@ func (cc *CommandCompleter) Do(line []rune, pos int) (newLine [][]rune, offset i
 			return
 		}
 	}
-	for _, completion := range completions(cc.Factory, word, cmd, args) {
+	for _, completion := range completions(cc.Finder, word, cmd, args) {
 		if len(word) >= len(completion) {
 			if len(word) == len(completion) {
 				newLine = append(newLine, []rune{' '})
@@ -63,7 +61,7 @@ func (cc *CommandCompleter) Do(line []rune, pos int) (newLine [][]rune, offset i
 	return
 }
 
-func completions(factory *cmdutil.Factory, prefix string, cmd *cobra.Command, args []string) []string {
+func completions(finder ResourceFinder, prefix string, cmd *cobra.Command, args []string) []string {
 	candidates := []string{}
 	if strings.HasPrefix(prefix, "-") {
 		candidates = flags(cmd)
@@ -72,14 +70,14 @@ func completions(factory *cmdutil.Factory, prefix string, cmd *cobra.Command, ar
 		if len(candidates) == 0 {
 			switch cmd.Name() {
 			case "logs", "attach", "exec", "port-forward":
-				candidates = resources(factory, "pods")
+				candidates = resources(finder, "pods")
 			case "rolling-update":
-				candidates = resources(factory, "rc")
+				candidates = resources(finder, "rc")
 			case "cordon", "uncordon", "drain":
-				candidates = resources(factory, "node")
+				candidates = resources(finder, "node")
 			default:
 				if t := resourceType(args); len(t) > 0 {
-					candidates = resources(factory, t)
+					candidates = resources(finder, t)
 				} else {
 					candidates = resourceTypes(cmd)
 				}
@@ -129,9 +127,9 @@ func resourceType(args []string) string {
 	}
 }
 
-func resources(factory *cmdutil.Factory, resourceType string) []string {
+func resources(finder ResourceFinder, resourceType string) []string {
 
-	resources, err := lookupResource(factory, []string{resourceType})
+	resources, err := finder.Lookup([]string{resourceType})
 	ret := []string{}
 
 	if err == nil {

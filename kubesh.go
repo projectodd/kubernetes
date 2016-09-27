@@ -24,13 +24,12 @@ import (
 
 	"k8s.io/kubernetes/pkg/kubectl/cmd"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
-	"k8s.io/kubernetes/pkg/kubectl/resource"
 )
 
 type InternalCommand func(*kubesh, []string) error
 
 type kubesh struct {
-	factory          *cmdutil.Factory
+	finder           ResourceFinder
 	context          []string
 	rl               *readline.Instance
 	internalCommands map[string]InternalCommand
@@ -42,10 +41,11 @@ func main() {
 	})
 
 	factory := cmdutil.NewFactory(nil)
+	finder := Resourceful{factory}
 	kubectl := cmd.NewKubectlCommand(factory, os.Stdin, os.Stdout, os.Stderr)
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:       "> ",
-		AutoComplete: &CommandCompleter{kubectl, factory},
+		AutoComplete: &CommandCompleter{kubectl, finder},
 	})
 	if err != nil {
 		panic(err)
@@ -54,8 +54,8 @@ func main() {
 	defer rl.Close()
 
 	sh := kubesh{
-		factory: factory,
-		rl:      rl,
+		finder: finder,
+		rl:     rl,
 		internalCommands: map[string]InternalCommand{
 			"exit": func(_ *kubesh, _ []string) error {
 				fmt.Println("Bye!")
@@ -113,7 +113,7 @@ func setContextCommand(sh *kubesh, args []string) error {
 		return nil
 	}
 
-	resources, err := lookupResource(sh.factory, args[1:])
+	resources, err := sh.finder.Lookup(args[1:])
 	if err != nil {
 
 		return err
@@ -137,47 +137,4 @@ func setContextCommand(sh *kubesh, args []string) error {
 
 func prompt(context []string) string {
 	return strings.Join(context, ":") + "> "
-}
-
-type resourceInfo struct {
-	typeName string
-	name     string
-}
-
-// takes a type, or type and resource name, returning a slice of resourceInfo for each record returned by the api
-func lookupResource(f *cmdutil.Factory, args []string) ([]resourceInfo, error) {
-	cmdNamespace, _, err := f.DefaultNamespace()
-	if err != nil {
-
-		return nil, err
-	}
-
-	mapper, typer := f.Object()
-	r := resource.NewBuilder(mapper, typer, resource.ClientMapperFunc(f.ClientForMapping), f.Decoder(true)).
-		NamespaceParam(cmdNamespace).
-		ResourceTypeOrNameArgs(true, args...).
-		ContinueOnError().
-		Latest().
-		Flatten().
-		Do()
-
-	if err := r.Err(); err != nil {
-		fmt.Println(err)
-
-		return nil, nil
-	}
-
-	infos, err := r.Infos()
-	if err != nil {
-		fmt.Println(err)
-
-		return nil, nil
-	}
-
-	ret := make([]resourceInfo, 0, len(infos))
-	for _, i := range infos {
-		ret = append(ret, resourceInfo{i.Mapping.Resource, i.Name})
-	}
-
-	return ret, nil
 }
