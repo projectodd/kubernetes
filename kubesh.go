@@ -126,11 +126,10 @@ func setContextCommand(sh *kubesh, args []string) error {
 
 	if len(resources) > 0 {
 		res := resources[0]
-		typeName := res["type"]
 		if typeOnly {
-			sh.context = []string{typeName}
+			sh.context = []string{res.typeName}
 		} else {
-			sh.context = []string{typeName, res["name"]}
+			sh.context = []string{res.typeName, res.name}
 		}
 	}
 
@@ -143,8 +142,13 @@ func prompt(context []string) string {
 	return strings.Join(context, ":") + "> "
 }
 
-// takes a type, or type and resource name, returning a slice of maps of name and type for each record returned by the api
-func lookupResource(f *cmdutil.Factory, args []string) ([]map[string]string, error) {
+type resourceInfo struct {
+	typeName string
+	name     string
+}
+
+// takes a type, or type and resource name, returning a slice of resourceInfo for each record returned by the api
+func lookupResource(f *cmdutil.Factory, args []string) ([]resourceInfo, error) {
 	cmdNamespace, _, err := f.DefaultNamespace()
 	if err != nil {
 
@@ -173,12 +177,9 @@ func lookupResource(f *cmdutil.Factory, args []string) ([]map[string]string, err
 		return nil, nil
 	}
 
-	ret := make([]map[string]string, 0, len(infos))
+	ret := make([]resourceInfo, 0, len(infos))
 	for _, i := range infos {
-		ret = append(ret, map[string]string{
-			"type": i.Mapping.Resource,
-			"name": i.Name,
-		})
+		ret = append(ret, resourceInfo{i.Mapping.Resource, i.Name})
 	}
 
 	return ret, nil

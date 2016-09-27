@@ -136,7 +136,7 @@ func resources(factory *cmdutil.Factory, resourceType string) []string {
 
 	if err == nil {
 		for _, r := range resources {
-			ret = append(ret, r["name"])
+			ret = append(ret, r.name)
 		}
 	}
 
