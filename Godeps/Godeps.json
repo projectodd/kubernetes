@@ -249,6 +249,11 @@
 			"Rev": "c924893c38ecc04b18d7aab8a7aa561cb8b4c4cc"
 		},
 		{
+			"ImportPath": "github.com/bbrowning/readline",
+			"Comment": "v1.4-16-g3f2c6f6",
+			"Rev": "3f2c6f67d76e1319f7bc357f50f08109d5a70212"
+		},
+		{
 			"ImportPath": "github.com/beorn7/perks/quantile",
 			"Rev": "3ac7bf7a47d159a033b107610db8a1b6575507a4"
 		},
@@ -261,11 +266,6 @@
 			"ImportPath": "github.com/boltdb/bolt",
 			"Comment": "v1.2.1",
 			"Rev": "dfb21201d9270c1082d5fb0f07f500311ff72f18"
-		},
-		{
-			"ImportPath": "github.com/chzyer/readline",
-			"Comment": "v1.4-15-g283f542",
-			"Rev": "283f5429f7723ac628cb68a44a11097c11a7a9c1"
 		},
 		{
 			"ImportPath": "github.com/cloudflare/cfssl/auth",

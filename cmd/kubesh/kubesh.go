@@ -21,7 +21,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/chzyer/readline"
+	"github.com/bbrowning/readline"
 
 	"k8s.io/kubernetes/pkg/kubectl/cmd"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
