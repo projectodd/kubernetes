@@ -111,9 +111,11 @@ func complete(prefix string, candidates []string) (results []string) {
 }
 
 func subCommands(cmd *cobra.Command) []string {
-	prefixes := make([]string, len(cmd.Commands()))
-	for i, c := range cmd.Commands() {
-		prefixes[i] = c.Name() + " "
+	prefixes := make([]string, 0, len(cmd.Commands()))
+	for _, c := range cmd.Commands() {
+		if c.IsAvailableCommand() {
+			prefixes = append(prefixes, c.Name()+" ")
+		}
 	}
 	return prefixes
 }
