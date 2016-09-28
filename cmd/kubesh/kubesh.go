@@ -71,6 +71,11 @@ func main() {
 		},
 	}
 
+	fmt.Println("Welcome to kubesh, the kubectl shell!")
+	fmt.Println("Type 'help' or TAB to see available commands")
+	fmt.Println("For options/flags, tab complete a dash, '--<TAB>'")
+	fmt.Println("Use 'pin' when multiple commands apply to same resource")
+	fmt.Println("Use GNU readline key bindings for editing and history")
 	for {
 		line, err := sh.rl.Readline()
 		if err == readline.ErrInterrupt {
