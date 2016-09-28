@@ -79,7 +79,7 @@ func (cc *CommandCompleter) completions(prefix string, cmd *cobra.Command, args 
 				if t := resourceType(args); len(t) > 0 {
 					candidates = cc.resources(t)
 				} else {
-					candidates = resourceTypes(cmd)
+					candidates = ResourceTypes(cmd)
 				}
 			}
 		}
@@ -137,7 +137,7 @@ func flags(cmd *cobra.Command) []string {
 	return flags
 }
 
-func resourceTypes(cmd *cobra.Command) []string {
+func ResourceTypes(cmd *cobra.Command) []string {
 	args := cmd.ValidArgs
 	sort.Strings(args)
 	return args

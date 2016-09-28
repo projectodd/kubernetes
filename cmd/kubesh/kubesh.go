@@ -91,6 +91,8 @@ func main() {
 
 		if !internal {
 			kubectl := cmd.NewKubectlCommand(factory, os.Stdin, os.Stdout, os.Stderr)
+			// TODO: what do we do with an error here? do we care?
+			args, _ = applyContext(sh.context, args, kubectl)
 			kubectl.SetArgs(args)
 			kubectl.Execute()
 		}
@@ -106,38 +108,4 @@ func (sh *kubesh) runInternalCommand(args []string) (bool, error) {
 	}
 
 	return false, nil
-}
-
-func setContextCommand(sh *kubesh, args []string) error {
-	if len(args) == 1 || len(args) > 3 {
-		fmt.Println("Usage: " + args[0] + " TYPE [NAME]")
-
-		//TODO: return an error?
-		return nil
-	}
-
-	resources, err := sh.finder.Lookup(args[1:])
-	if err != nil {
-
-		return err
-	}
-
-	typeOnly := len(args) == 2
-
-	if len(resources) > 0 {
-		res := resources[0]
-		if typeOnly {
-			sh.context = []string{res.typeName}
-		} else {
-			sh.context = []string{res.typeName, res.name}
-		}
-	}
-
-	sh.rl.SetPrompt(prompt(sh.context))
-
-	return nil
-}
-
-func prompt(context []string) string {
-	return strings.Join(context, ":") + "> "
 }
