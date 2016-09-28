@@ -18,12 +18,14 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/chzyer/readline"
 
 	"k8s.io/kubernetes/pkg/kubectl/cmd"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
+	"k8s.io/kubernetes/pkg/util/homedir"
 )
 
 type InternalCommand func(*kubesh, []string) error
@@ -46,6 +48,7 @@ func main() {
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:       "> ",
 		AutoComplete: &CommandCompleter{kubectl, finder},
+		HistoryFile:  path.Join(homedir.HomeDir(), ".kubesh_history"),
 	})
 	if err != nil {
 		panic(err)
