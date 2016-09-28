@@ -18,21 +18,49 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/renstrom/dedent"
 	"github.com/spf13/cobra"
 
 	"k8s.io/kubernetes/pkg/kubectl"
 )
 
+var help = dedent.Dedent(`
+      Pin to a resource or resource type.
+
+      Pinning causes the shell to remember the given resource and/or
+      resource type, and apply it to commands as appropriate, allowing
+      you to leave the resource type and/or name out of other command
+      invocations.
+
+      # Pin to pods
+      pin pods
+
+      # Pin to a particular pod
+      pin pod nginx-1234-asdf
+
+      # Clear the pin
+      pin clear
+
+      The current pin will be shown in the prompt.
+`)
+
 func setContextCommand(sh *kubesh, args []string) error {
-	switch l := len(args); {
-	case l > 3:
-		fmt.Println("Usage: " + args[0] + "[TYPE [NAME]]")
+	if len(args) == 1 || len(args) > 3 {
+		fmt.Println("Usage: " + args[0] + " (-h | clear | [TYPE [NAME]])")
 
 		//TODO: return an error?
 		return nil
-	case l == 1:
+	}
+
+	switch arg := args[1]; {
+	case arg == "clear":
 		sh.context = []string{}
 		sh.rl.SetPrompt(prompt(sh.context))
+
+		return nil
+
+	case arg == "-h":
+		fmt.Println(help)
 
 		return nil
 	}
