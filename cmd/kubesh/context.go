@@ -24,10 +24,16 @@ import (
 )
 
 func setContextCommand(sh *kubesh, args []string) error {
-	if len(args) == 1 || len(args) > 3 {
-		fmt.Println("Usage: " + args[0] + " TYPE [NAME]")
+	switch l := len(args); {
+	case l > 3:
+		fmt.Println("Usage: " + args[0] + "[TYPE [NAME]]")
 
 		//TODO: return an error?
+		return nil
+	case l == 1:
+		sh.context = []string{}
+		sh.rl.SetPrompt(prompt(sh.context))
+
 		return nil
 	}
 

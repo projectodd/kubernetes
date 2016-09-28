@@ -67,7 +67,7 @@ func main() {
 				return nil
 			},
 
-			"sc": setContextCommand,
+			"context": setContextCommand,
 		},
 	}
 
