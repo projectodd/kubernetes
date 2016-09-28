@@ -46,7 +46,7 @@ func main() {
 	finder := Resourceful{factory}
 	kubectl := cmd.NewKubectlCommand(factory, os.Stdin, os.Stdout, os.Stderr)
 	rl, err := readline.NewEx(&readline.Config{
-		Prompt:       "> ",
+		Prompt:       prompt([]string{}),
 		AutoComplete: &CommandCompleter{kubectl, finder},
 		HistoryFile:  path.Join(homedir.HomeDir(), ".kubesh_history"),
 	})
@@ -113,4 +113,13 @@ func (sh *kubesh) runInternalCommand(args []string) (bool, error) {
 	}
 
 	return false, nil
+}
+
+func prompt(context []string) string {
+	prefix := ""
+	if len(context) > 0 {
+		prefix = fmt.Sprintf("[%v] ", strings.Join(context, ":"))
+	}
+
+	return prefix + "kubesh> "
 }

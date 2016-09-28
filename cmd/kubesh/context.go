@@ -16,7 +16,6 @@ package main
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/renstrom/dedent"
 	"github.com/spf13/cobra"
@@ -85,10 +84,6 @@ func setContextCommand(sh *kubesh, args []string) error {
 	sh.rl.SetPrompt(prompt(sh.context))
 
 	return nil
-}
-
-func prompt(context []string) string {
-	return strings.Join(context, ":") + "> "
 }
 
 func applyContext(context []string, args []string, rootCommand *cobra.Command) ([]string, error) {
