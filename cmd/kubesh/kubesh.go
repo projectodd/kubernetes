@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/bbrowning/readline"
+	"github.com/spf13/cobra"
 
 	"k8s.io/kubernetes/pkg/kubectl/cmd"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
@@ -40,6 +41,7 @@ type kubesh struct {
 func main() {
 	cmdutil.BehaviorOnFatal(func(msg string, code int) {
 		fmt.Println(msg)
+		panic("kubectl")
 	})
 
 	factory := cmdutil.NewFactory(nil)
@@ -99,9 +101,17 @@ func main() {
 			// TODO: what do we do with an error here? do we care?
 			args, _ = applyContext(sh.context, args, kubectl)
 			kubectl.SetArgs(args)
-			kubectl.Execute()
+			runKubeCommand(kubectl)
 		}
 	}
+}
+
+func runKubeCommand(kubectl *cobra.Command) {
+	defer func() {
+		// Ignore any panics from kubectl
+		recover()
+	}()
+	kubectl.Execute()
 }
 
 func (sh *kubesh) runInternalCommand(args []string) (bool, error) {
