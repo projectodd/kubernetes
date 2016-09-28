@@ -87,6 +87,9 @@ func setContextCommand(sh *kubesh, args []string) error {
 }
 
 func applyContext(context []string, args []string, rootCommand *cobra.Command) ([]string, error) {
+	newArgs := []string{}
+	newArgs = append(newArgs, args[0])
+
 	if len(context) > 0 {
 		subcmd, _, err := rootCommand.Find(args[:1])
 		if err != nil {
@@ -99,10 +102,18 @@ func applyContext(context []string, args []string, rootCommand *cobra.Command) (
 		for _, t := range kubectl.ResourceAliases(ResourceTypes(subcmd)) {
 			resourceTypes[t] = struct{}{}
 		}
-		newArgs := []string{}
-		newArgs = append(newArgs, args[0])
 
-		if _, ok := resourceTypes[context[0]]; ok {
+		if len(resourceTypes) == 0 {
+			t, ok := commandTakesResourceName(args[0])
+			if ok && t == context[0] && len(context) > 1 {
+				newArgs = append(newArgs, context[1])
+			}
+
+			// top is a special snowflake
+			if args[0] == "top" && (context[0] == "pods" || context[0] == "nodes") {
+				newArgs = append(newArgs, context[0])
+			}
+		} else if _, ok := resourceTypes[context[0]]; ok {
 			err := subcmd.ParseFlags(args)
 			if err != nil {
 
@@ -122,10 +133,19 @@ func applyContext(context []string, args []string, rootCommand *cobra.Command) (
 					newArgs = append(newArgs, context[0])
 				}
 			}
-
-			return append(newArgs, args[1:]...), nil
 		}
 	}
 
-	return args, nil
+	return append(newArgs, args[1:]...), nil
+}
+
+func commandTakesResourceName(cmd string) (string, bool) {
+	switch cmd {
+	case "logs", "port-forward":
+		return "pods", true
+	case "attach", "cordon", "drain", "exec", "uncordon":
+		return "nodes", true
+	}
+
+	return "", false
 }
