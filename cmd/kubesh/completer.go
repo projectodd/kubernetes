@@ -75,6 +75,9 @@ func (cc *CommandCompleter) completions(prefix string, cmd *cobra.Command, args 
 				candidates = cc.resources("rc")
 			case "cordon", "uncordon", "drain":
 				candidates = cc.resources("node")
+			case "explain":
+				getCmd, _, _ := cc.Root.Find([]string{"get"})
+				candidates = ResourceTypes(getCmd)
 			default:
 				if t := resourceType(args); len(t) > 0 {
 					candidates = cc.resources(t)
