@@ -126,10 +126,10 @@ func (sh *kubesh) runInternalCommand(args []string) (bool, error) {
 }
 
 func prompt(context []string) string {
-	prefix := ""
+	path := ""
 	if len(context) > 0 {
-		prefix = fmt.Sprintf("[%v] ", strings.Join(context, ":"))
+		path = fmt.Sprintf("[%v]", strings.Join(context, "/"))
 	}
 
-	return prefix + "kubesh> "
+	return fmt.Sprintf("kubesh%v> ", path)
 }
