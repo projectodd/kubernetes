@@ -126,10 +126,11 @@ func (sh *kubesh) runKubeCommand(kubectl *cobra.Command, args []string) {
 		// Ignore any panics from kubectl
 		recover()
 	}()
-	subcommand, _, err := kubectl.Find(args)
-	if err == nil && subcommand.Name() == "proxy" {
+	subcommand, _, _ := kubectl.Find(args)
+	switch subcommand.Name() {
+	case "proxy", "attach":
 		sh.runExec(args)
-	} else {
+	default:
 		kubectl.SetArgs(args)
 		kubectl.Execute()
 	}
