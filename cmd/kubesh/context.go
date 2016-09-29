@@ -38,46 +38,41 @@ var help = dedent.Dedent(`
       pin pod nginx-1234-asdf
 
       # Clear the pin
-      pin clear
+      pin
+
+      # Show this help
+      pin -h
 
       The current pin will be shown in the prompt.
 `)
 
 func setContextCommand(sh *kubesh, args []string) error {
-	if len(args) == 1 || len(args) > 3 {
-		fmt.Println("Usage: " + args[0] + " (-h | clear | [TYPE [NAME]])")
-
-		//TODO: return an error?
-		return nil
-	}
-
-	switch arg := args[1]; {
-	case arg == "clear":
-		sh.context = []string{}
-		sh.rl.SetPrompt(prompt(sh.context))
-
-		return nil
-
-	case arg == "-h":
+	if len(args) > 3 || (len(args) > 1 && args[1] == "-h") {
+		fmt.Println("Invalid arguments.")
 		fmt.Println(help)
 
 		return nil
 	}
 
-	resources, err := sh.finder.Lookup(args[1:])
-	if err != nil {
+	if len(args) == 1 {
+		sh.context = []string{}
+		fmt.Println("Pin cleared.")
+	} else {
+		resources, err := sh.finder.Lookup(args[1:])
+		if err != nil {
 
-		return err
-	}
+			return err
+		}
 
-	typeOnly := len(args) == 2
+		typeOnly := len(args) == 2
 
-	if len(resources) > 0 {
-		res := resources[0]
-		if typeOnly {
-			sh.context = []string{res.typeName}
-		} else {
-			sh.context = []string{res.typeName, res.name}
+		if len(resources) > 0 {
+			res := resources[0]
+			if typeOnly {
+				sh.context = []string{res.typeName}
+			} else {
+				sh.context = []string{res.typeName, res.name}
+			}
 		}
 	}
 
