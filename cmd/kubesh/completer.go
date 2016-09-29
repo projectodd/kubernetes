@@ -26,11 +26,11 @@ type CommandCompleter struct {
 	Finder ResourceFinder
 }
 
-func (cc *CommandCompleter) Do(line []rune, pos int) (newLine [][]rune, offset int) {
-	cmd, args := cc.Root, []string{}
-	word := string(line[:pos])
-	lastSpace := strings.LastIndex(string(line[:pos]), " ") + 1
-	lastComma := strings.LastIndex(string(line[:pos]), ",") + 1
+func (cc *CommandCompleter) Do(lune []rune, pos int) (newLine [][]rune, offset int) {
+	cmd, args, line := cc.Root, []string{}, string(lune[:pos])
+	word := line
+	lastSpace := strings.LastIndex(line, " ") + 1
+	lastComma := strings.LastIndex(line, ",") + 1
 	if lastSpace > 0 {
 		if lastComma > lastSpace {
 			word = word[lastComma:pos]
@@ -38,7 +38,7 @@ func (cc *CommandCompleter) Do(line []rune, pos int) (newLine [][]rune, offset i
 			word = word[lastSpace:pos]
 		}
 		var err error
-		cmd, args, err = cc.Root.Find(strings.Split(string(line), " "))
+		cmd, args, err = cc.Root.Find(strings.Split(line, " "))
 		if err != nil {
 			return
 		}
