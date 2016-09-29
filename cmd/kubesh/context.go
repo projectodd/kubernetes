@@ -137,9 +137,9 @@ func applyContext(context []string, args []string, rootCommand *cobra.Command) (
 
 func commandTakesResourceName(cmd string) (string, bool) {
 	switch cmd {
-	case "logs", "port-forward":
+	case "attach", "exec", "logs", "port-forward":
 		return "pods", true
-	case "attach", "cordon", "drain", "exec", "uncordon":
+	case "cordon", "drain", "uncordon":
 		return "nodes", true
 	}
 
