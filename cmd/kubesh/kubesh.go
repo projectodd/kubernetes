@@ -18,8 +18,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
+	"os/signal"
 	"path"
 	"strings"
+	"syscall"
 
 	"github.com/bbrowning/readline"
 	"github.com/spf13/cobra"
@@ -36,17 +39,27 @@ type kubesh struct {
 	context          []string
 	rl               *readline.Instance
 	internalCommands map[string]InternalCommand
+	progname         string
 }
 
 func main() {
+	factory := cmdutil.NewFactory(nil)
+	finder := Resourceful{factory}
+	kubectl := cmd.NewKubectlCommand(factory, os.Stdin, os.Stdout, os.Stderr)
+
+	// If args are passed just run that kubectl command directly
+	progArgs := os.Args[1:]
+	if len(progArgs) > 0 {
+		kubectl.SetArgs(progArgs)
+		kubectl.Execute()
+		return
+	}
+
 	cmdutil.BehaviorOnFatal(func(msg string, code int) {
 		fmt.Println(msg)
 		panic("kubectl")
 	})
 
-	factory := cmdutil.NewFactory(nil)
-	finder := Resourceful{factory}
-	kubectl := cmd.NewKubectlCommand(factory, os.Stdin, os.Stdout, os.Stderr)
 	completer := &CommandCompleter{kubectl, finder}
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:       prompt([]string{}),
@@ -72,6 +85,7 @@ func main() {
 
 			"pin": setContextCommand,
 		},
+		progname: os.Args[0],
 	}
 	sh.setupAutoComplete(completer)
 
@@ -102,18 +116,42 @@ func main() {
 			kubectl := cmd.NewKubectlCommand(factory, os.Stdin, os.Stdout, os.Stderr)
 			// TODO: what do we do with an error here? do we care?
 			args, _ = applyContext(sh.context, args, kubectl)
-			kubectl.SetArgs(args)
-			runKubeCommand(kubectl)
+			sh.runKubeCommand(kubectl, args)
 		}
 	}
 }
 
-func runKubeCommand(kubectl *cobra.Command) {
+func (sh *kubesh) runKubeCommand(kubectl *cobra.Command, args []string) {
 	defer func() {
 		// Ignore any panics from kubectl
 		recover()
 	}()
-	kubectl.Execute()
+	subcommand, _, err := kubectl.Find(args)
+	if err == nil && subcommand.Name() == "proxy" {
+		sh.runExec(args)
+	} else {
+		kubectl.SetArgs(args)
+		kubectl.Execute()
+	}
+}
+
+func (sh *kubesh) runExec(args []string) {
+	cmd := exec.Command(sh.progname, args...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Start()
+
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGINT)
+	defer signal.Stop(signals)
+	go func() {
+		<-signals
+		fmt.Println("")
+		syscall.Kill(cmd.Process.Pid, syscall.SIGINT)
+	}()
+
+	cmd.Wait()
 }
 
 func (sh *kubesh) runInternalCommand(args []string) (bool, error) {
