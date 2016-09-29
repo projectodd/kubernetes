@@ -143,7 +143,10 @@ func flags(cmd *cobra.Command) []string {
 }
 
 func ResourceTypes(cmd *cobra.Command) []string {
-	args := cmd.ValidArgs
+	args := make([]string, len(cmd.ValidArgs))
+	for i, v := range cmd.ValidArgs {
+		args[i] = v + " "
+	}
 	sort.Strings(args)
 	return args
 }
