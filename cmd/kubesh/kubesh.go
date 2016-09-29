@@ -47,9 +47,10 @@ func main() {
 	factory := cmdutil.NewFactory(nil)
 	finder := Resourceful{factory}
 	kubectl := cmd.NewKubectlCommand(factory, os.Stdin, os.Stdout, os.Stderr)
+	completer := &CommandCompleter{kubectl, finder}
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:       prompt([]string{}),
-		AutoComplete: &CommandCompleter{kubectl, finder},
+		AutoComplete: completer,
 		HistoryFile:  path.Join(homedir.HomeDir(), ".kubesh_history"),
 	})
 	if err != nil {
@@ -72,6 +73,7 @@ func main() {
 			"pin": setContextCommand,
 		},
 	}
+	sh.setupAutoComplete(completer)
 
 	fmt.Println("Welcome to kubesh, the kubectl shell!")
 	fmt.Println("Type 'help' or <TAB> to see available commands")
@@ -123,6 +125,19 @@ func (sh *kubesh) runInternalCommand(args []string) (bool, error) {
 	}
 
 	return false, nil
+}
+
+func (sh *kubesh) setupAutoComplete(completer *CommandCompleter) {
+	get, _, err := completer.Root.Find([]string{"get"})
+	if err != nil {
+		panic(err)
+	}
+	cmd := &cobra.Command{
+		Use:       "pin",
+		ValidArgs: get.ValidArgs,
+		Run:       func(cmd *cobra.Command, args []string) {},
+	}
+	completer.Root.AddCommand(cmd)
 }
 
 func prompt(context []string) string {
