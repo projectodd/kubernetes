@@ -19,7 +19,6 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
 
 type CommandCompleter struct {
@@ -61,14 +60,15 @@ func (cc *CommandCompleter) Do(line []rune, pos int) (newLine [][]rune, offset i
 	return
 }
 
-func (cc *CommandCompleter) completions(prefix string, cmd *cobra.Command, args []string) []string {
+func (cc *CommandCompleter) completions(prefix string, ccmd *cobra.Command, args []string) []string {
 	candidates := []string{}
+	cmd := &Command{ccmd}
 	if strings.HasPrefix(prefix, "-") {
 		candidates = flags(cmd)
 	} else {
 		candidates = subCommands(cmd)
 		if len(candidates) == 0 {
-			switch cmd.Name() {
+			switch ccmd.Name() {
 			case "logs", "attach", "exec", "port-forward":
 				candidates = cc.resources("pods")
 			case "rolling-update":
@@ -77,12 +77,12 @@ func (cc *CommandCompleter) completions(prefix string, cmd *cobra.Command, args 
 				candidates = cc.resources("node")
 			case "explain":
 				getCmd, _, _ := cc.Root.Find([]string{"get"})
-				candidates = ResourceTypes(getCmd)
+				candidates = resourceTypes(&Command{getCmd})
 			default:
 				if t := resourceType(args); len(t) > 0 {
 					candidates = cc.resources(t)
 				} else {
-					candidates = ResourceTypes(cmd)
+					candidates = resourceTypes(cmd)
 				}
 			}
 		}
@@ -113,38 +113,34 @@ func complete(prefix string, candidates []string) (results []string) {
 	return
 }
 
-func subCommands(cmd *cobra.Command) []string {
-	prefixes := make([]string, 0, len(cmd.Commands()))
-	for _, c := range cmd.Commands() {
-		if c.IsAvailableCommand() {
-			prefixes = append(prefixes, c.Name()+" ")
-		}
+func subCommands(cmd *Command) []string {
+	cmds := cmd.SubCommands()
+	results := make([]string, len(cmds))
+	for _, c := range cmds {
+		results = append(results, c+" ")
 	}
-	return prefixes
+	return results
 }
 
-func flags(cmd *cobra.Command) []string {
-	flags := []string{}
-	fn := func(f *pflag.Flag) {
-		if len(f.Deprecated) > 0 || f.Hidden {
-			return
-		}
+func flags(cmd *Command) []string {
+	flags := cmd.Flags()
+	results := make([]string, len(flags))
+	for _, f := range flags {
 		flag := "--" + f.Name
-		if len(f.NoOptDefVal) == 0 {
+		if f.Assignable {
 			flag += "="
 		} else {
 			flag += " "
 		}
-		flags = append(flags, flag)
+		results = append(results, flag)
 	}
-	cmd.NonInheritedFlags().VisitAll(fn)
-	cmd.InheritedFlags().VisitAll(fn)
-	return flags
+	return results
 }
 
-func ResourceTypes(cmd *cobra.Command) []string {
-	args := make([]string, len(cmd.ValidArgs))
-	for i, v := range cmd.ValidArgs {
+func resourceTypes(cmd *Command) []string {
+	types := cmd.ResourceTypes()
+	args := make([]string, len(types))
+	for i, v := range types {
 		args[i] = v + " "
 	}
 	sort.Strings(args)
