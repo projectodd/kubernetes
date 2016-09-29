@@ -113,7 +113,7 @@ func complete(prefix string, candidates []string) (results []string) {
 	return
 }
 
-func subCommands(cmd *Command) []string {
+func subCommands(cmd KubectlCommand) []string {
 	cmds := cmd.SubCommands()
 	results := make([]string, len(cmds))
 	for _, c := range cmds {
@@ -122,7 +122,7 @@ func subCommands(cmd *Command) []string {
 	return results
 }
 
-func flags(cmd *Command) []string {
+func flags(cmd KubectlCommand) []string {
 	flags := cmd.Flags()
 	results := make([]string, len(flags))
 	for _, f := range flags {
@@ -137,7 +137,7 @@ func flags(cmd *Command) []string {
 	return results
 }
 
-func resourceTypes(cmd *Command) []string {
+func resourceTypes(cmd KubectlCommand) []string {
 	types := cmd.ResourceTypes()
 	args := make([]string, len(types))
 	for i, v := range types {
