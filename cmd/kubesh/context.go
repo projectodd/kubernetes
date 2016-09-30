@@ -82,14 +82,13 @@ func applyContext(context []string, args []string, rootCommand *cobra.Command) (
 	if len(context) > 0 {
 		subcmd, _, err := rootCommand.Find(args[:1])
 		if err != nil {
-
 			return args, err
 		}
+		cmd := Command{subcmd}
 
 		// poor man's set
 		resourceTypes := map[string]struct{}{}
-		c := Command{subcmd}
-		for _, t := range kubectl.ResourceAliases(c.ResourceTypes()) {
+		for _, t := range kubectl.ResourceAliases(cmd.ResourceTypes()) {
 			resourceTypes[t] = struct{}{}
 		}
 
@@ -104,13 +103,7 @@ func applyContext(context []string, args []string, rootCommand *cobra.Command) (
 				newArgs = append(newArgs, context[0])
 			}
 		} else if _, ok := resourceTypes[context[0]]; ok {
-			err := subcmd.ParseFlags(args)
-			if err != nil {
-
-				return args, err
-			}
-
-			nonFlagArgs := subcmd.Flags().Args()
+			nonFlagArgs := cmd.NonFlags(args)
 			// the subcommand is an arg, so we'll always have at least one
 			switch l := len(nonFlagArgs); {
 			case l == 1:

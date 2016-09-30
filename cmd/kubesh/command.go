@@ -25,6 +25,7 @@ type KubectlCommand interface {
 	SubCommands() []string
 	ResourceTypes() []string
 	Flags() []Flag
+	NonFlags(args []string) []string
 }
 
 type Command struct {
@@ -65,4 +66,9 @@ func (cmd *Command) Flags() []Flag {
 	cmd.ref.NonInheritedFlags().VisitAll(fn)
 	cmd.ref.InheritedFlags().VisitAll(fn)
 	return flags
+}
+
+func (cmd *Command) NonFlags(args []string) []string {
+	cmd.ref.ParseFlags(args)
+	return cmd.ref.Flags().Args()
 }

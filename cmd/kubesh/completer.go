@@ -82,7 +82,7 @@ func (cc *CommandCompleter) completions(prefix string, ccmd *cobra.Command, args
 			default:
 				switch len(*cc.Context) {
 				case 0:
-					if t := resourceType(args); len(t) > 0 {
+					if t := resourceType(cmd, args); len(t) > 0 {
 						candidates = cc.resources(t)
 					} else {
 						candidates = resourceTypes(cmd)
@@ -155,13 +155,8 @@ func resourceTypes(cmd KubectlCommand) []string {
 
 // resourceType returns the resource type identified in the args,
 // which could be a comma-delimited list of multiple types
-func resourceType(args []string) string {
-	x := []string{}
-	for _, s := range args {
-		if !strings.HasPrefix(s, "-") {
-			x = append(x, s)
-		}
-	}
+func resourceType(cmd KubectlCommand, args []string) string {
+	x := cmd.NonFlags(args)
 	if len(x) > 1 {
 		return x[0]
 	} else {
