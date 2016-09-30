@@ -106,19 +106,24 @@ func main() {
 		} else if err == io.EOF {
 			break
 		}
-		line = strings.TrimSpace(line)
-		args := strings.Split(line, " ")
-		internal, err := sh.runInternalCommand(args)
+		args, err := tokenize(line)
 		if err != nil {
-			panic(err)
-		}
+			fmt.Println(err)
+		} else {
+			internal, err := sh.runInternalCommand(args)
+			if err != nil {
+				panic(err)
+			}
 
-		if !internal {
-			kubectl := cmd.NewKubectlCommand(factory, os.Stdin, os.Stdout, os.Stderr)
-			// TODO: what do we do with an error here? do we care?
-			args, _ = applyContext(sh.context, args, kubectl)
-			sh.runKubeCommand(kubectl, args)
+			if !internal {
+				kubectl := cmd.NewKubectlCommand(factory, os.Stdin, os.Stdout, os.Stderr)
+				// TODO: what do we do with an error here? do we care?
+				args, _ = applyContext(sh.context, args, kubectl)
+				sh.runKubeCommand(kubectl, args)
+			}
 		}
+		// FIXME: if the command output something w/o a trailing \n, it
+		// won't show
 	}
 }
 
