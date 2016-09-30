@@ -80,15 +80,14 @@ func (cc *CommandCompleter) completions(prefix string, ccmd *cobra.Command, args
 				getCmd, _, _ := cc.Root.Find([]string{"get"})
 				candidates = resourceTypes(&Command{getCmd})
 			default:
-				switch len(*cc.Context) {
-				case 0:
+				if len(*cc.Context) == 1 {
+					candidates = cc.resources((*cc.Context)[0])
+				} else {
 					if t := resourceType(cmd, args); len(t) > 0 {
 						candidates = cc.resources(t)
 					} else {
 						candidates = resourceTypes(cmd)
 					}
-				case 1:
-					candidates = cc.resources((*cc.Context)[0])
 				}
 			}
 		}
