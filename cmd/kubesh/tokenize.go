@@ -33,7 +33,6 @@ func tokenize(s string) ([]string, error) {
 		case '\\':
 			appendRune = escape
 			escape = !escape
-
 		case '\'', '"':
 			appendRune = false
 			switch {
@@ -49,7 +48,6 @@ func tokenize(s string) ([]string, error) {
 				curQuote = r
 			}
 			escape = false
-
 		case ' ', '\t':
 			appendRune = escape
 			if inQuote {
@@ -59,7 +57,6 @@ func tokenize(s string) ([]string, error) {
 				appendToken = !escape && len(curToken) > 0
 			}
 			escape = false
-
 		default:
 			appendEscape = escape
 			escape = false
@@ -68,11 +65,9 @@ func tokenize(s string) ([]string, error) {
 		if appendEscape {
 			curToken = append(curToken, '\\')
 		}
-
 		if appendRune {
 			curToken = append(curToken, r)
 		}
-
 		if appendToken {
 			tokens = append(tokens, string(curToken))
 			curToken = []rune{}
@@ -82,7 +77,6 @@ func tokenize(s string) ([]string, error) {
 	if inQuote {
 		return tokens, TokenizeError("Unexpected end of input; did you forget to close a quote?")
 	}
-
 	if len(curToken) > 0 {
 		tokens = append(tokens, string(curToken))
 	}
