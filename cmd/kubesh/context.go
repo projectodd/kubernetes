@@ -91,6 +91,9 @@ func applyContext(context []string, args []string, rootCommand *cobra.Command) (
 
 		// poor man's set
 		resourceTypes := map[string]struct{}{}
+		for _, t := range cmd.ResourceTypes() {
+			resourceTypes[t] = struct{}{}
+		}
 		for _, t := range kubectl.ResourceAliases(cmd.ResourceTypes()) {
 			resourceTypes[t] = struct{}{}
 		}
