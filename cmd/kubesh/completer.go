@@ -22,8 +22,9 @@ import (
 )
 
 type CommandCompleter struct {
-	Root   *cobra.Command
-	Finder ResourceFinder
+	Root    *cobra.Command
+	Finder  ResourceFinder
+	Context *[]string
 }
 
 func (cc *CommandCompleter) Do(lune []rune, pos int) (newLine [][]rune, offset int) {
@@ -79,10 +80,15 @@ func (cc *CommandCompleter) completions(prefix string, ccmd *cobra.Command, args
 				getCmd, _, _ := cc.Root.Find([]string{"get"})
 				candidates = resourceTypes(&Command{getCmd})
 			default:
-				if t := resourceType(args); len(t) > 0 {
-					candidates = cc.resources(t)
-				} else {
-					candidates = resourceTypes(cmd)
+				switch len(*cc.Context) {
+				case 0:
+					if t := resourceType(args); len(t) > 0 {
+						candidates = cc.resources(t)
+					} else {
+						candidates = resourceTypes(cmd)
+					}
+				case 1:
+					candidates = cc.resources((*cc.Context)[0])
 				}
 			}
 		}

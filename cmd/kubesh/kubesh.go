@@ -60,7 +60,7 @@ func main() {
 		panic("kubectl")
 	})
 
-	completer := &CommandCompleter{kubectl, finder}
+	completer := &CommandCompleter{Root: kubectl, Finder: finder}
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:       prompt([]string{}),
 		AutoComplete: completer,
@@ -88,6 +88,7 @@ func main() {
 		progname: os.Args[0],
 	}
 	sh.setupAutoComplete(completer)
+	completer.Context = &sh.context
 
 	fmt.Println("Welcome to kubesh, the kubectl shell!")
 	fmt.Println("Type 'help' or <TAB> to see available commands")
