@@ -43,5 +43,6 @@ func TestFoo(t *testing.T) {
 
 func init() {
 	kubectl := cmd.NewKubectlCommand(cmdutil.NewFactory(nil), os.Stdin, os.Stdout, os.Stderr)
-	completer = &CommandCompleter{kubectl, TestFinder{}}
+	dummy := []string{}
+	completer = &CommandCompleter{kubectl, TestFinder{}, &dummy}
 }
