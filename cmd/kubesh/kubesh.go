@@ -40,6 +40,7 @@ type kubesh struct {
 	rl               *readline.Instance
 	internalCommands map[string]InternalCommand
 	progname         string
+	root             *cobra.Command
 }
 
 func main() {
@@ -73,6 +74,7 @@ func main() {
 	defer rl.Close()
 
 	sh := kubesh{
+		root:   kubectl,
 		finder: finder,
 		rl:     rl,
 		internalCommands: map[string]InternalCommand{
@@ -87,7 +89,7 @@ func main() {
 		},
 		progname: os.Args[0],
 	}
-	sh.setupAutoComplete(completer)
+	sh.addPinCommand()
 	completer.Context = &sh.context
 
 	fmt.Println("Welcome to kubesh, the kubectl shell!")
@@ -172,8 +174,8 @@ func (sh *kubesh) runInternalCommand(args []string) (bool, error) {
 	return false, nil
 }
 
-func (sh *kubesh) setupAutoComplete(completer *CommandCompleter) {
-	get, _, err := completer.Root.Find([]string{"get"})
+func (sh *kubesh) addPinCommand() {
+	get, _, err := sh.root.Find([]string{"get"})
 	if err != nil {
 		panic(err)
 	}
@@ -182,7 +184,7 @@ func (sh *kubesh) setupAutoComplete(completer *CommandCompleter) {
 		ValidArgs: get.ValidArgs,
 		Run:       func(cmd *cobra.Command, args []string) {},
 	}
-	completer.Root.AddCommand(cmd)
+	sh.root.AddCommand(cmd)
 }
 
 func prompt(context []string) string {

@@ -57,14 +57,17 @@ func setContextCommand(sh *kubesh, args []string) error {
 		sh.context = []string{}
 		fmt.Println("Pin cleared.")
 	} else {
-		ctxargs := append(sh.context, args[1:]...)
-		resources, err := sh.finder.Lookup(ctxargs)
+		ctxargs, err := applyContext(sh.context, args, sh.root)
+		if err != nil {
+			return err
+		}
+		resources, err := sh.finder.Lookup(ctxargs[1:])
 		if err != nil {
 			return err
 		}
 		if len(resources) > 0 {
 			res := resources[0]
-			if len(ctxargs) == 1 {
+			if len(ctxargs) == 2 {
 				sh.context = []string{res.typeName}
 			} else {
 				sh.context = []string{res.typeName, res.name}
