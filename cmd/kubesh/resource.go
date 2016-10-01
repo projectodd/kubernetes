@@ -15,8 +15,6 @@
 package main
 
 import (
-	"fmt"
-
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
 	"k8s.io/kubernetes/pkg/kubectl/resource"
 )
@@ -54,16 +52,12 @@ func (rf Resourceful) Lookup(args []string) ([]ResourceInfo, error) {
 		Do()
 
 	if err := r.Err(); err != nil {
-		fmt.Println(err)
-
-		return nil, nil
+		return nil, err
 	}
 
 	infos, err := r.Infos()
 	if err != nil {
-		fmt.Println(err)
-
-		return nil, nil
+		return nil, err
 	}
 
 	ret := make([]ResourceInfo, 0, len(infos))
