@@ -15,6 +15,8 @@
 package main
 
 import (
+	"bytes"
+	"fmt"
 	"sort"
 
 	"github.com/spf13/cobra"
@@ -35,6 +37,12 @@ type Command struct {
 type Flag struct {
 	Name       string
 	Assignable bool
+	usage      string
+	Shorthand  string
+}
+
+func (cmd *Command) Name() string {
+	return cmd.ref.Name()
 }
 
 func (cmd *Command) SubCommands() []string {
@@ -60,7 +68,12 @@ func (cmd *Command) Flags() []Flag {
 		if len(f.Deprecated) > 0 || f.Hidden {
 			return
 		}
-		flag := Flag{f.Name, (len(f.NoOptDefVal) == 0)}
+		flag := Flag{
+			Name:       f.Name,
+			Assignable: (len(f.NoOptDefVal) == 0),
+			usage:      f.Usage,
+			Shorthand:  f.Shorthand,
+		}
 		flags = append(flags, flag)
 	}
 	cmd.ref.NonInheritedFlags().VisitAll(fn)
@@ -71,4 +84,19 @@ func (cmd *Command) Flags() []Flag {
 func (cmd *Command) NonFlags(args []string) []string {
 	cmd.ref.ParseFlags(args)
 	return cmd.ref.Flags().Args()
+}
+
+func (flag Flag) Usage() string {
+	x := new(bytes.Buffer)
+	format := "--%s: %s"
+	if flag.Assignable {
+		format = "--%s=: %s"
+	}
+	if len(flag.Shorthand) > 0 {
+		format = "  -%s, " + format
+	} else {
+		format = "   %s   " + format
+	}
+	fmt.Fprintf(x, format, flag.Shorthand, flag.Name, flag.usage)
+	return x.String()
 }

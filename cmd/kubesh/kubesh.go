@@ -66,6 +66,7 @@ func main() {
 		Prompt:       prompt([]string{}),
 		AutoComplete: completer,
 		HistoryFile:  path.Join(homedir.HomeDir(), ".kubesh_history"),
+		Listener:     completer,
 	})
 	if err != nil {
 		panic(err)

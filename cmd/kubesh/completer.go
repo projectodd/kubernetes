@@ -15,11 +15,17 @@
 package main
 
 import (
+	"errors"
+	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
+	"github.com/bbrowning/readline"
 	"github.com/spf13/cobra"
 )
+
+var flagRegex *regexp.Regexp = regexp.MustCompile(`.*--([a-z\-]+)[= ]$`)
 
 type CommandCompleter struct {
 	Root    *cobra.Command
@@ -28,7 +34,8 @@ type CommandCompleter struct {
 }
 
 func (cc *CommandCompleter) Do(lune []rune, pos int) (newLine [][]rune, offset int) {
-	cmd, args, line := cc.Root, []string{}, string(lune[:pos])
+	var err error
+	cmd, args, line := &Command{cc.Root}, []string{}, string(lune[:pos])
 	word := line
 	lastSpace := strings.LastIndex(line, " ") + 1
 	lastComma := strings.LastIndex(line, ",") + 1
@@ -38,8 +45,7 @@ func (cc *CommandCompleter) Do(lune []rune, pos int) (newLine [][]rune, offset i
 		} else {
 			word = word[lastSpace:pos]
 		}
-		var err error
-		cmd, args, err = cc.Root.Find(strings.Split(line, " "))
+		cmd, args, err = cc.findCommand(line)
 		if err != nil {
 			return
 		}
@@ -56,20 +62,36 @@ func (cc *CommandCompleter) Do(lune []rune, pos int) (newLine [][]rune, offset i
 			newLine = append(newLine, []rune(completion)[len(word):])
 			offset = len(word)
 		}
-
 	}
 	return
 }
 
-func (cc *CommandCompleter) completions(prefix string, ccmd *cobra.Command, args []string) []string {
+func (cc *CommandCompleter) findCommand(cli string) (result *Command, args []string, err error) {
+	args, err = tokenize(cli)
+	if err != nil {
+		return
+	}
+	cmd, args, err := cc.Root.Find(args)
+	if err != nil {
+		return
+	}
+	if strings.HasSuffix(cli, " ") {
+		// space implies completed completion. without it,
+		// we're not sure if we have a valid type or not. see
+		// the len check in resourceType(args)
+		args = append(args, "")
+	}
+	return &Command{cmd}, args, err
+}
+
+func (cc *CommandCompleter) completions(word string, cmd *Command, args []string) []string {
 	candidates := []string{}
-	cmd := &Command{ccmd}
-	if strings.HasPrefix(prefix, "-") {
+	if strings.HasPrefix(word, "-") && !strings.HasSuffix(word, "=") {
 		candidates = flags(cmd)
 	} else {
 		candidates = subCommands(cmd)
 		if len(candidates) == 0 {
-			switch ccmd.Name() {
+			switch cmd.Name() {
 			case "logs", "attach", "exec", "port-forward":
 				candidates = cc.resources("pods")
 			case "rolling-update":
@@ -92,21 +114,18 @@ func (cc *CommandCompleter) completions(prefix string, ccmd *cobra.Command, args
 			}
 		}
 	}
-	return complete(prefix, candidates)
+	return complete(word, candidates)
 }
 
 func (cc *CommandCompleter) resources(resourceType string) []string {
-
+	results := []string{}
 	resources, err := cc.Finder.Lookup([]string{resourceType})
-	ret := []string{}
-
 	if err == nil {
 		for _, r := range resources {
-			ret = append(ret, r.name)
+			results = append(results, r.name+" ")
 		}
 	}
-
-	return ret
+	return results
 }
 
 func complete(prefix string, candidates []string) (results []string) {
@@ -121,8 +140,8 @@ func complete(prefix string, candidates []string) (results []string) {
 func subCommands(cmd KubectlCommand) []string {
 	cmds := cmd.SubCommands()
 	results := make([]string, len(cmds))
-	for _, c := range cmds {
-		results = append(results, c+" ")
+	for i, c := range cmds {
+		results[i] = c + " "
 	}
 	return results
 }
@@ -130,14 +149,14 @@ func subCommands(cmd KubectlCommand) []string {
 func flags(cmd KubectlCommand) []string {
 	flags := cmd.Flags()
 	results := make([]string, len(flags))
-	for _, f := range flags {
+	for i, f := range flags {
 		flag := "--" + f.Name
 		if f.Assignable {
 			flag += "="
 		} else {
 			flag += " "
 		}
-		results = append(results, flag)
+		results[i] = flag
 	}
 	return results
 }
@@ -161,4 +180,31 @@ func resourceType(cmd KubectlCommand, args []string) string {
 	} else {
 		return ""
 	}
+}
+
+func (cc *CommandCompleter) lastFlag(cli string) (result Flag, err error) {
+	match := flagRegex.FindStringSubmatch(cli)
+	if len(match) > 1 {
+		cmd, _, err := cc.findCommand(cli)
+		if err == nil {
+			for _, f := range cmd.Flags() {
+				if match[1] == f.Name {
+					return f, nil
+				}
+			}
+		}
+	}
+	return result, errors.New("No flag found at end of command line")
+}
+
+func (cc *CommandCompleter) OnChange(line []rune, pos int, key rune) (newLine []rune, newPos int, ok bool) {
+	newLine, newPos = line, pos
+	if key == readline.CharTab {
+		flag, err := cc.lastFlag(string(line[:pos]))
+		if err == nil {
+			fmt.Printf("\n\n%s\n\n", flag.Usage())
+			ok = true
+		}
+	}
+	return
 }
