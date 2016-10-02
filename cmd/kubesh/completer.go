@@ -25,7 +25,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var flagRegex *regexp.Regexp = regexp.MustCompile(`.*--([a-z\-]+)[= ]$`)
+var flagRegex *regexp.Regexp = regexp.MustCompile(`.*--([a-z\-]+)=$`)
 
 type CommandCompleter struct {
 	Root    *cobra.Command
