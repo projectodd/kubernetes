@@ -163,9 +163,13 @@ func flags(cmd KubectlCommand) []string {
 
 func resourceTypes(cmd KubectlCommand) []string {
 	types := cmd.ResourceTypes()
-	args := make([]string, len(types))
-	for i, v := range types {
-		args[i] = v + " "
+	dupe := map[string]bool{}
+	args := make([]string, 0, len(types))
+	for _, v := range types {
+		if !dupe[v] {
+			dupe[v] = true
+			args = append(args, v+" ")
+		}
 	}
 	sort.Strings(args)
 	return args
