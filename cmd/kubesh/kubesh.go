@@ -35,12 +35,11 @@ import (
 type InternalCommand func(*kubesh, []string) error
 
 type kubesh struct {
-	finder           ResourceFinder
-	context          []string
-	lineReader       *readline.Instance
-	internalCommands map[string]InternalCommand
-	progname         string
-	root             *cobra.Command
+	finder     ResourceFinder
+	context    []string
+	lineReader *readline.Instance
+	progname   string
+	root       *cobra.Command
 }
 
 func main() {
@@ -62,39 +61,24 @@ func main() {
 	}
 
 	sh := kubesh{
-		root:   kubectl,
-		finder: finder,
-		internalCommands: map[string]InternalCommand{
-			"exit": func(_ *kubesh, _ []string) error {
-				fmt.Println("Bye!")
-				os.Exit(0)
-
-				return nil
-			},
-
-			"pin": setContextCommand,
-		},
+		root:     kubectl,
+		finder:   finder,
 		progname: os.Args[0],
 	}
-	sh.addPinCommand()
+	sh.addInternalCommands(kubectl)
 	completer := NewCompleter(kubectl, finder, &sh.context)
-	var err error
-	sh.lineReader, err = readline.NewEx(&readline.Config{
+	sh.lineReader, _ = readline.NewEx(&readline.Config{
 		Prompt:       prompt([]string{}),
 		AutoComplete: completer,
 		HistoryFile:  path.Join(homedir.HomeDir(), ".kubesh_history"),
 		Listener:     completer,
 	})
-	if err != nil {
-		panic(err)
-	}
 	defer sh.lineReader.Close()
 
-	fmt.Println("Welcome to kubesh, the kubectl shell!")
-	fmt.Println("Type 'help' or <TAB> to see available commands")
+	fmt.Println("kubesh is an interactive interface to kubectl")
+	fmt.Println("<TAB> should complete most commands and resources")
 	fmt.Println("For options/flags, tab complete a dash, '--<TAB>'")
-	fmt.Println("Use 'pin' when multiple commands apply to same resource")
-	fmt.Println("Use GNU readline key bindings for command editing and history")
+	fmt.Println("Use GNU readline key bindings for editing and history")
 	for {
 		line, err := sh.lineReader.Readline()
 		if err == readline.ErrInterrupt {
@@ -110,13 +94,11 @@ func main() {
 		if err != nil {
 			fmt.Println(err)
 		} else {
-			internal, err := sh.runInternalCommand(args)
-			if err == nil && !internal {
-				kubectl := cmd.NewKubectlCommand(factory, os.Stdin, os.Stdout, os.Stderr)
-				// TODO: what do we do with an error here? do we care?
-				args, _ = applyContext(sh.context, args, kubectl)
-				sh.runKubeCommand(kubectl, args)
-			}
+			kubectl := cmd.NewKubectlCommand(factory, os.Stdin, os.Stdout, os.Stderr)
+			sh.addInternalCommands(kubectl)
+			// TODO: what do we do with an error here? do we care?
+			args, _ = applyContext(sh.context, args, kubectl)
+			sh.runKubeCommand(kubectl, args)
 		}
 		// FIXME: if the command output something w/o a trailing \n, it
 		// won't show
@@ -157,28 +139,40 @@ func (sh *kubesh) runExec(args []string) {
 	cmd.Wait()
 }
 
-func (sh *kubesh) runInternalCommand(args []string) (bool, error) {
-	if len(args) > 0 {
-		if f := sh.internalCommands[args[0]]; f != nil {
-
-			return true, f(sh, args)
-		}
-	}
-
-	return false, nil
-}
-
-func (sh *kubesh) addPinCommand() {
+func (sh *kubesh) addInternalCommands(parent *cobra.Command) {
 	get, _, err := sh.root.Find([]string{"get"})
 	if err != nil {
 		panic(err)
 	}
 	cmd := &cobra.Command{
 		Use:       "pin",
+		Short:     "Pin resources for use in subsequent commands",
+		Long:      pin_long,
+		Example:   pin_example,
 		ValidArgs: get.ValidArgs,
-		Run:       func(cmd *cobra.Command, args []string) {},
+		Run: func(cmd *cobra.Command, args []string) {
+			if cmdutil.GetFlagBool(cmd, "clear") {
+				sh.context = []string{}
+			} else {
+				err := setContextCommand(sh, args)
+				cmdutil.CheckErr(err)
+			}
+			sh.lineReader.SetPrompt(prompt(sh.context))
+		},
 	}
-	sh.root.AddCommand(cmd)
+	cmd.Flags().BoolP("clear", "c", false, "Clears pinned resource")
+	parent.AddCommand(cmd)
+
+	cmd = &cobra.Command{
+		Use:   "exit",
+		Short: "Exit kubesh",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println("Bye!")
+			os.Exit(0)
+		},
+	}
+	parent.AddCommand(cmd)
+
 }
 
 func prompt(context []string) string {
@@ -187,5 +181,5 @@ func prompt(context []string) string {
 		path = fmt.Sprintf("[%v]", strings.Join(context, "/"))
 	}
 
-	return fmt.Sprintf("kubesh%v> ", path)
+	return fmt.Sprintf(" kubesh%v> ", path)
 }

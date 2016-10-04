@@ -15,76 +15,53 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/renstrom/dedent"
 	"github.com/spf13/cobra"
 
 	"k8s.io/kubernetes/pkg/kubectl"
 )
 
-var help = dedent.Dedent(`
-      Pin to a resource or resource type.
+var pin_long = dedent.Dedent(`
+      Pin resources for use in subsequent commands.
 
       Pinning causes the shell to remember the given resource and/or
       resource type, and apply it to commands as appropriate, allowing
       you to leave the resource type and/or name out of other command
       invocations.
 
-      # Pin to pods
-      pin pods
-
-      # Pin to a particular pod
-      pin pod nginx-1234-asdf
-
-      # Clear the pin
-      pin
-
-      # Show this help
-      pin -h
-
       The current pin will be shown in the prompt.
 `)
 
+var pin_example = dedent.Dedent(`
+      # Pin to a type of resource
+      pin pods
+
+      # Pin to a particular resource
+      pin pod nginx-1234-asdf
+
+      # Clear the pin
+      pin -c
+`)
+
 func setContextCommand(sh *kubesh, args []string) (err error) {
-	if len(args) > 3 {
-		fmt.Println("Invalid arguments")
-		return
+	resources, err := sh.finder.Lookup(args)
+	if err != nil {
+		return err
 	}
-	if len(args) > 1 && args[1] == "-h" {
-		fmt.Println(help)
-		return
-	}
-	if len(args) == 1 {
-		sh.context = []string{}
-		fmt.Println("Pin cleared")
-	} else {
-		ctxargs, err := applyContext(sh.context, args, sh.root)
-		if err != nil {
-			return err
-		}
-		resources, err := sh.finder.Lookup(ctxargs[1:])
-		if err != nil {
-			fmt.Println(err)
-			return err
-		}
-		if len(resources) > 0 {
-			res := resources[0]
-			if len(ctxargs) == 2 {
-				sh.context = []string{res.typeName}
-			} else {
-				sh.context = []string{res.typeName, res.name}
-			}
+	if len(resources) > 0 {
+		res := resources[0]
+		if len(args) == 1 {
+			sh.context = []string{res.typeName}
+		} else {
+			sh.context = []string{res.typeName, res.name}
 		}
 	}
-	sh.lineReader.SetPrompt(prompt(sh.context))
 	return
 }
 
-func applyContext(context []string, args []string, rootCommand *cobra.Command) ([]string, error) {
-	newArgs := []string{}
+func applyContext(context []string, args []string, rootCommand *cobra.Command) (newArgs []string, err error) {
 	if len(args) == 0 {
-		return newArgs, nil
+		return
 	}
 	newArgs = append(newArgs, args[0])
 
@@ -130,7 +107,6 @@ func applyContext(context []string, args []string, rootCommand *cobra.Command) (
 			}
 		}
 	}
-
 	return append(newArgs, args[1:]...), nil
 }
 
