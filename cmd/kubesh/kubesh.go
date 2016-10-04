@@ -61,7 +61,7 @@ func main() {
 		panic("kubectl")
 	})
 
-	completer := &CommandCompleter{Root: kubectl, Finder: finder}
+	completer := NewCompleter(kubectl, finder)
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:       prompt([]string{}),
 		AutoComplete: completer,

@@ -23,14 +23,16 @@ import (
 	"github.com/spf13/pflag"
 )
 
-type KubectlCommand interface {
+type Command interface {
+	Name() string
 	SubCommands() []string
 	ResourceTypes() []string
 	Flags() []Flag
 	NonFlags(args []string) []string
+	Find(cli string) (Command, []string, error)
 }
 
-type Command struct {
+type KubectlCommand struct {
 	ref *cobra.Command
 }
 
@@ -41,11 +43,11 @@ type Flag struct {
 	Shorthand  string
 }
 
-func (cmd *Command) Name() string {
+func (cmd KubectlCommand) Name() string {
 	return cmd.ref.Name()
 }
 
-func (cmd *Command) SubCommands() []string {
+func (cmd KubectlCommand) SubCommands() []string {
 	cmds := cmd.ref.Commands()
 	results := make([]string, 0, len(cmds))
 	for _, c := range cmds {
@@ -56,13 +58,13 @@ func (cmd *Command) SubCommands() []string {
 	return results
 }
 
-func (cmd *Command) ResourceTypes() []string {
+func (cmd KubectlCommand) ResourceTypes() []string {
 	args := cmd.ref.ValidArgs
 	sort.Strings(args)
 	return args
 }
 
-func (cmd *Command) Flags() []Flag {
+func (cmd KubectlCommand) Flags() []Flag {
 	flags := []Flag{}
 	fn := func(f *pflag.Flag) {
 		if len(f.Deprecated) > 0 || f.Hidden {
@@ -81,9 +83,21 @@ func (cmd *Command) Flags() []Flag {
 	return flags
 }
 
-func (cmd *Command) NonFlags(args []string) []string {
+func (cmd KubectlCommand) NonFlags(args []string) []string {
 	cmd.ref.ParseFlags(args)
 	return cmd.ref.Flags().Args()
+}
+
+func (cmd KubectlCommand) Find(cli string) (result Command, args []string, err error) {
+	args, err = tokenize(cli)
+	if err != nil {
+		return
+	}
+	cc, args, err := cmd.ref.Find(args)
+	if err != nil {
+		return
+	}
+	return KubectlCommand{cc}, args, err
 }
 
 func (flag Flag) Usage() string {

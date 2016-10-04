@@ -28,14 +28,18 @@ import (
 var flagRegex *regexp.Regexp = regexp.MustCompile(`.*--([a-z\-]+)=$`)
 
 type CommandCompleter struct {
-	Root    *cobra.Command
-	Finder  ResourceFinder
+	root    Command
+	finder  ResourceFinder
 	Context *[]string
+}
+
+func NewCompleter(cmd *cobra.Command, finder ResourceFinder) *CommandCompleter {
+	return &CommandCompleter{root: KubectlCommand{cmd}, finder: finder}
 }
 
 func (cc *CommandCompleter) Do(lune []rune, pos int) (newLine [][]rune, offset int) {
 	var err error
-	cmd, args, line := &Command{cc.Root}, []string{}, string(lune[:pos])
+	cmd, args, line := cc.root, []string{}, string(lune[:pos])
 	word := line
 	lastSpace := strings.LastIndex(line, " ") + 1
 	lastComma := strings.LastIndex(line, ",") + 1
@@ -66,25 +70,18 @@ func (cc *CommandCompleter) Do(lune []rune, pos int) (newLine [][]rune, offset i
 	return
 }
 
-func (cc *CommandCompleter) findCommand(cli string) (result *Command, args []string, err error) {
-	args, err = tokenize(cli)
-	if err != nil {
-		return
-	}
-	cmd, args, err := cc.Root.Find(args)
-	if err != nil {
-		return
-	}
+func (cc *CommandCompleter) findCommand(cli string) (result Command, args []string, err error) {
+	result, args, err = cc.root.Find(cli)
 	if strings.HasSuffix(cli, " ") {
 		// space implies completed completion. without it,
 		// we're not sure if we have a valid type or not. see
 		// the len check in resourceType(args)
 		args = append(args, "")
 	}
-	return &Command{cmd}, args, err
+	return
 }
 
-func (cc *CommandCompleter) completions(word string, cmd *Command, args []string) []string {
+func (cc *CommandCompleter) completions(word string, cmd Command, args []string) []string {
 	candidates := []string{}
 	if strings.HasPrefix(word, "-") && !strings.HasSuffix(word, "=") {
 		candidates = flags(cmd)
@@ -99,8 +96,8 @@ func (cc *CommandCompleter) completions(word string, cmd *Command, args []string
 			case "cordon", "uncordon", "drain":
 				candidates = cc.resources("node")
 			case "explain":
-				getCmd, _, _ := cc.Root.Find([]string{"get"})
-				candidates = resourceTypes(&Command{getCmd})
+				getCmd, _, _ := cc.root.Find("get")
+				candidates = resourceTypes(getCmd)
 			default:
 				if len(*cc.Context) == 1 {
 					candidates = cc.resources((*cc.Context)[0])
@@ -119,7 +116,7 @@ func (cc *CommandCompleter) completions(word string, cmd *Command, args []string
 
 func (cc *CommandCompleter) resources(resourceType string) []string {
 	results := []string{}
-	resources, err := cc.Finder.Lookup([]string{resourceType})
+	resources, err := cc.finder.Lookup([]string{resourceType})
 	if err == nil {
 		for _, r := range resources {
 			results = append(results, r.name+" ")
@@ -137,7 +134,7 @@ func complete(prefix string, candidates []string) (results []string) {
 	return
 }
 
-func subCommands(cmd KubectlCommand) []string {
+func subCommands(cmd Command) []string {
 	cmds := cmd.SubCommands()
 	results := make([]string, len(cmds))
 	for i, c := range cmds {
@@ -146,7 +143,7 @@ func subCommands(cmd KubectlCommand) []string {
 	return results
 }
 
-func flags(cmd KubectlCommand) []string {
+func flags(cmd Command) []string {
 	flags := cmd.Flags()
 	results := make([]string, len(flags))
 	for i, f := range flags {
@@ -161,7 +158,7 @@ func flags(cmd KubectlCommand) []string {
 	return results
 }
 
-func resourceTypes(cmd KubectlCommand) []string {
+func resourceTypes(cmd Command) []string {
 	types := cmd.ResourceTypes()
 	dupe := map[string]bool{}
 	args := make([]string, 0, len(types))
@@ -177,7 +174,7 @@ func resourceTypes(cmd KubectlCommand) []string {
 
 // resourceType returns the resource type identified in the args,
 // which could be a comma-delimited list of multiple types
-func resourceType(cmd KubectlCommand, args []string) string {
+func resourceType(cmd Command, args []string) string {
 	x := cmd.NonFlags(args)
 	if len(x) > 1 {
 		return x[0]

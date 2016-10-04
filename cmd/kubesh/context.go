@@ -87,7 +87,7 @@ func applyContext(context []string, args []string, rootCommand *cobra.Command) (
 		if err != nil {
 			return args, err
 		}
-		cmd := Command{subcmd}
+		cmd := KubectlCommand{subcmd}
 
 		// poor man's set
 		resourceTypes := map[string]struct{}{}
