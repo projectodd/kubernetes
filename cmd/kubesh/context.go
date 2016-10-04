@@ -77,7 +77,7 @@ func setContextCommand(sh *kubesh, args []string) (err error) {
 			}
 		}
 	}
-	sh.rl.SetPrompt(prompt(sh.context))
+	sh.lineReader.SetPrompt(prompt(sh.context))
 	return
 }
 

@@ -30,11 +30,11 @@ var flagRegex *regexp.Regexp = regexp.MustCompile(`.*--([a-z\-]+)=$`)
 type CommandCompleter struct {
 	root    Command
 	finder  ResourceFinder
-	Context *[]string
+	context *[]string
 }
 
-func NewCompleter(cmd *cobra.Command, finder ResourceFinder) *CommandCompleter {
-	return &CommandCompleter{root: KubectlCommand{cmd}, finder: finder}
+func NewCompleter(cmd *cobra.Command, finder ResourceFinder, ctx *[]string) *CommandCompleter {
+	return &CommandCompleter{KubectlCommand{cmd}, finder, ctx}
 }
 
 func (cc *CommandCompleter) Do(lune []rune, pos int) (newLine [][]rune, offset int) {
@@ -99,8 +99,8 @@ func (cc *CommandCompleter) completions(word string, cmd Command, args []string)
 				getCmd, _, _ := cc.root.Find("get")
 				candidates = resourceTypes(getCmd)
 			default:
-				if len(*cc.Context) == 1 {
-					candidates = cc.resources((*cc.Context)[0])
+				if len(*cc.context) == 1 {
+					candidates = cc.resources((*cc.context)[0])
 				} else {
 					if t := resourceType(cmd, args); len(t) > 0 {
 						candidates = cc.resources(t)

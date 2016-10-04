@@ -37,13 +37,18 @@ type InternalCommand func(*kubesh, []string) error
 type kubesh struct {
 	finder           ResourceFinder
 	context          []string
-	rl               *readline.Instance
+	lineReader       *readline.Instance
 	internalCommands map[string]InternalCommand
 	progname         string
 	root             *cobra.Command
 }
 
 func main() {
+	cmdutil.BehaviorOnFatal(func(msg string, code int) {
+		fmt.Println(msg)
+		panic("kubectl")
+	})
+
 	factory := cmdutil.NewFactory(nil)
 	finder := Resourceful{factory}
 	kubectl := cmd.NewKubectlCommand(factory, os.Stdin, os.Stdout, os.Stderr)
@@ -56,28 +61,9 @@ func main() {
 		return
 	}
 
-	cmdutil.BehaviorOnFatal(func(msg string, code int) {
-		fmt.Println(msg)
-		panic("kubectl")
-	})
-
-	completer := NewCompleter(kubectl, finder)
-	rl, err := readline.NewEx(&readline.Config{
-		Prompt:       prompt([]string{}),
-		AutoComplete: completer,
-		HistoryFile:  path.Join(homedir.HomeDir(), ".kubesh_history"),
-		Listener:     completer,
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	defer rl.Close()
-
 	sh := kubesh{
 		root:   kubectl,
 		finder: finder,
-		rl:     rl,
 		internalCommands: map[string]InternalCommand{
 			"exit": func(_ *kubesh, _ []string) error {
 				fmt.Println("Bye!")
@@ -91,7 +77,18 @@ func main() {
 		progname: os.Args[0],
 	}
 	sh.addPinCommand()
-	completer.Context = &sh.context
+	completer := NewCompleter(kubectl, finder, &sh.context)
+	var err error
+	sh.lineReader, err = readline.NewEx(&readline.Config{
+		Prompt:       prompt([]string{}),
+		AutoComplete: completer,
+		HistoryFile:  path.Join(homedir.HomeDir(), ".kubesh_history"),
+		Listener:     completer,
+	})
+	if err != nil {
+		panic(err)
+	}
+	defer sh.lineReader.Close()
 
 	fmt.Println("Welcome to kubesh, the kubectl shell!")
 	fmt.Println("Type 'help' or <TAB> to see available commands")
@@ -99,7 +96,7 @@ func main() {
 	fmt.Println("Use 'pin' when multiple commands apply to same resource")
 	fmt.Println("Use GNU readline key bindings for command editing and history")
 	for {
-		line, err := sh.rl.Readline()
+		line, err := sh.lineReader.Readline()
 		if err == readline.ErrInterrupt {
 			if len(line) == 0 {
 				break
