@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main // TODO: _test suffix
+package kubesh // TODO: _test prefix
 
 import (
 	"os"
