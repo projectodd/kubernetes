@@ -46,16 +46,18 @@ var help = dedent.Dedent(`
       The current pin will be shown in the prompt.
 `)
 
-func setContextCommand(sh *kubesh, args []string) error {
-	if len(args) > 3 || (len(args) > 1 && args[1] == "-h") {
-		fmt.Println("Invalid arguments.")
+func setContextCommand(sh *kubesh, args []string) (err error) {
+	if len(args) > 3 {
+		fmt.Println("Invalid arguments")
+		return
+	}
+	if len(args) > 1 && args[1] == "-h" {
 		fmt.Println(help)
-
-		return nil
+		return
 	}
 	if len(args) == 1 {
 		sh.context = []string{}
-		fmt.Println("Pin cleared.")
+		fmt.Println("Pin cleared")
 	} else {
 		ctxargs, err := applyContext(sh.context, args, sh.root)
 		if err != nil {
@@ -63,6 +65,7 @@ func setContextCommand(sh *kubesh, args []string) error {
 		}
 		resources, err := sh.finder.Lookup(ctxargs[1:])
 		if err != nil {
+			fmt.Println(err)
 			return err
 		}
 		if len(resources) > 0 {
@@ -75,11 +78,14 @@ func setContextCommand(sh *kubesh, args []string) error {
 		}
 	}
 	sh.rl.SetPrompt(prompt(sh.context))
-	return nil
+	return
 }
 
 func applyContext(context []string, args []string, rootCommand *cobra.Command) ([]string, error) {
 	newArgs := []string{}
+	if len(args) == 0 {
+		return newArgs, nil
+	}
 	newArgs = append(newArgs, args[0])
 
 	if len(context) > 0 {

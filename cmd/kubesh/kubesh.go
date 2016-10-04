@@ -114,11 +114,7 @@ func main() {
 			fmt.Println(err)
 		} else {
 			internal, err := sh.runInternalCommand(args)
-			if err != nil {
-				panic(err)
-			}
-
-			if !internal {
+			if err == nil && !internal {
 				kubectl := cmd.NewKubectlCommand(factory, os.Stdin, os.Stdout, os.Stderr)
 				// TODO: what do we do with an error here? do we care?
 				args, _ = applyContext(sh.context, args, kubectl)
