@@ -51,9 +51,9 @@ func setContextCommand(sh *kubesh, args []string) (err error) {
 	if len(resources) > 0 {
 		res := resources[0]
 		if len(args) == 1 {
-			sh.context = []string{res.typeName}
+			sh.context = []string{res.Type}
 		} else {
-			sh.context = []string{res.typeName, res.name}
+			sh.context = []string{res.Type, res.Name}
 		}
 	}
 	return

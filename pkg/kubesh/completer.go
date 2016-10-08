@@ -119,7 +119,7 @@ func (cc *CommandCompleter) resources(resourceType string) []string {
 	resources, err := cc.finder.Lookup([]string{resourceType})
 	if err == nil {
 		for _, r := range resources {
-			results = append(results, r.name+" ")
+			results = append(results, r.Name+" ")
 		}
 	}
 	return results

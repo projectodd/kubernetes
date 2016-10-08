@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package kubesh // TODO: _test prefix
+package kubesh_test
 
 import (
 	"os"
@@ -20,28 +20,96 @@ import (
 
 	"k8s.io/kubernetes/pkg/kubectl/cmd"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
+	"k8s.io/kubernetes/pkg/kubesh"
 )
-
-var completer *CommandCompleter
 
 type TestFinder map[string][]string
 
-func (f TestFinder) Lookup(args []string) ([]ResourceInfo, error) {
+var resources = TestFinder{
+	"pod":     {"p1", "p2"},
+	"service": {"s1", "s2", "s3"},
+}
+var context []string
+var completer = kubesh.NewCompleter(
+	cmd.NewKubectlCommand(cmdutil.NewFactory(nil), os.Stdin, os.Stdout, os.Stderr),
+	resources,
+	&context,
+)
+
+func TestCompleteCommands(t *testing.T) {
+	affirm(t, in("g", 1), out(1, "et "))
+	affirm(t, in("ro", 2), out(2, "lling-update ", "llout "))
+}
+
+func TestCompleteSubCommands(t *testing.T) {
+	affirm(t, in("create dep", 10), out(3, "loyment "))
+	affirm(t, in("create dep", 9), out(2, "ployment "))
+}
+
+func TestCompleteResourceTypes(t *testing.T) {
+	affirm(t, in("get dep", 7), out(3, "loyment "))
+	affirm(t, in("get pod,dep", 11), out(3, "loyment "))
+}
+
+func TestCompleteResources(t *testing.T) {
+	affirm(t, in("get pod p", 9), out(1, "1 ", "2 "))
+	affirm(t, in("get service ", 12), out(0, "s1 ", "s2 ", "s3 "))
+	affirm(t, in("get service s1", 14), out(2, " "))
+}
+
+func TestCompleteFlags(t *testing.T) {
+	affirm(t, in("get --output", 12), out(8, "=", "-version="))
+	affirm(t, in("get --output= pod", 13), out(0))
+}
+
+func (f TestFinder) Lookup(args []string) ([]kubesh.Resource, error) {
 	t := args[0]
-	result := make([]ResourceInfo, 0, len(f[t]))
+	result := make([]kubesh.Resource, 0, len(f[t]))
 	for _, name := range f[t] {
-		result = append(result, ResourceInfo{t, name})
+		result = append(result, kubesh.Resource{t, name})
 	}
 	return result, nil
 }
 
-func TestFoo(t *testing.T) {
-	if false {
-		t.Error("Nope")
-	}
+type input struct {
+	line string
+	pos  int
 }
 
-func init() {
-	kubectl := cmd.NewKubectlCommand(cmdutil.NewFactory(nil), os.Stdin, os.Stdout, os.Stderr)
-	completer = NewCompleter(kubectl, TestFinder{}, &[]string{})
+type output struct {
+	candidates []string
+	length     int
+}
+
+func in(line string, pos int) input {
+	return input{line, pos}
+}
+func out(length int, candidates ...string) output {
+	return output{candidates, length}
+}
+func got(candidates [][]rune, length int) output {
+	strs := make([]string, len(candidates))
+	for i := range candidates {
+		strs[i] = string(candidates[i])
+	}
+	return output{strs, length}
+}
+
+func affirm(t *testing.T, in input, out output) {
+	newLine, length := completer.Do([]rune(in.line), in.pos)
+	pass := length == out.length
+	if pass {
+		pass = len(newLine) == len(out.candidates)
+		if pass {
+			for i, v := range newLine {
+				if string(v) != out.candidates[i] {
+					pass = false
+					break
+				}
+			}
+		}
+	}
+	if !pass {
+		t.Error("Expected", out, "From", in, "Got", got(newLine, length))
+	}
 }

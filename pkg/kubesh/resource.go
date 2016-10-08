@@ -23,18 +23,18 @@ type Resourceful struct {
 	Factory *cmdutil.Factory // can't extend non-local types
 }
 
-type ResourceInfo struct {
-	typeName string
-	name     string
+type Resource struct {
+	Type string
+	Name string
 }
 
 type ResourceFinder interface {
 	// takes a type, or type and resource name, returning a slice
-	// of ResourceInfo for each record returned by the api
-	Lookup(args []string) ([]ResourceInfo, error)
+	// of Resources for each record returned by the api
+	Lookup(args []string) ([]Resource, error)
 }
 
-func (rf Resourceful) Lookup(args []string) ([]ResourceInfo, error) {
+func (rf Resourceful) Lookup(args []string) ([]Resource, error) {
 	f := rf.Factory
 	cmdNamespace, _, err := f.DefaultNamespace()
 	if err != nil {
@@ -60,9 +60,9 @@ func (rf Resourceful) Lookup(args []string) ([]ResourceInfo, error) {
 		return nil, err
 	}
 
-	ret := make([]ResourceInfo, 0, len(infos))
+	ret := make([]Resource, 0, len(infos))
 	for _, i := range infos {
-		ret = append(ret, ResourceInfo{i.Mapping.Resource, i.Name})
+		ret = append(ret, Resource{i.Mapping.Resource, i.Name})
 	}
 
 	return ret, nil
