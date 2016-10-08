@@ -62,6 +62,14 @@ func TestCompleteFlags(t *testing.T) {
 	affirm(t, in("get --output= pod", 13), out(0))
 }
 
+func TestCompleteWithContext(t *testing.T) {
+	context = []string{"pod"}
+	affirm(t, in("get ", 4), out(0, "p1 ", "p2 "))
+	context = []string{"pod", "p1"}
+	affirm(t, in("get serv", 8), out(4, "ice ", "iceaccount "))
+	context = []string{}
+}
+
 func (f TestFinder) Lookup(args []string) ([]kubesh.Resource, error) {
 	t := args[0]
 	result := make([]kubesh.Resource, 0, len(f[t]))
