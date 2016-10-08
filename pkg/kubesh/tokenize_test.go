@@ -30,7 +30,10 @@ func check(t *testing.T, exp []string, given string) {
 		success = false
 	} else {
 		for i := range r {
-			success = r[i] == exp[i]
+			if r[i] != exp[i] {
+				success = false
+				break
+			}
 		}
 	}
 
