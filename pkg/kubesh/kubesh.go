@@ -23,6 +23,7 @@ import (
 	"path"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/bbrowning/readline"
 	"github.com/spf13/cobra"
@@ -45,7 +46,7 @@ func NewKubesh() *kubesh {
 	factory := cmdutil.NewFactory(nil)
 	sh := kubesh{
 		factory:  factory,
-		finder:   Resourceful{factory},
+		finder:   TimeoutFinder{Resourceful{factory}, time.Second * 2},
 		progname: os.Args[0],
 	}
 	sh.root = sh.newRootCommand()

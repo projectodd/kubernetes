@@ -17,6 +17,7 @@ package kubesh
 import (
 	"errors"
 	"fmt"
+	"log"
 	"regexp"
 	"sort"
 	"strings"
@@ -121,6 +122,8 @@ func (cc *CommandCompleter) resources(resourceType string) []string {
 		for _, r := range resources {
 			results = append(results, r.Name+" ")
 		}
+	} else {
+		log.Printf("Error completing resources: %s", err)
 	}
 	return results
 }
