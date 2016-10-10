@@ -15,6 +15,8 @@
 package kubesh
 
 import (
+	"k8s.io/kubernetes/pkg/api/unversioned"
+	"k8s.io/kubernetes/pkg/kubectl"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
 	"k8s.io/kubernetes/pkg/kubectl/resource"
 )
@@ -43,7 +45,13 @@ func (rf Resourceful) Lookup(args []string) ([]Resource, error) {
 	}
 
 	mapper, typer := f.Object()
-	r := resource.NewBuilder(mapper, typer, resource.ClientMapperFunc(f.ClientForMapping), f.Decoder(true)).
+	resourceMapper := &resource.Mapper{
+		ObjectTyper:  typer,
+		RESTMapper:   mapper,
+		ClientMapper: resource.ClientMapperFunc(f.ClientForMapping),
+		Decoder:      f.Decoder(true),
+	}
+	r := resource.NewBuilder(mapper, typer, resourceMapper.ClientMapper, resourceMapper.Decoder).
 		NamespaceParam(cmdNamespace).
 		ResourceTypeOrNameArgs(true, args...).
 		ContinueOnError().
@@ -60,9 +68,25 @@ func (rf Resourceful) Lookup(args []string) ([]Resource, error) {
 		return nil, err
 	}
 
-	ret := make([]Resource, 0, len(infos))
-	for _, i := range infos {
-		ret = append(ret, Resource{i.Mapping.Resource, i.Name})
+	obj, err := resource.AsVersionedObject(infos, true, unversioned.GroupVersion{}, f.JSONEncoder())
+	if err != nil {
+		return nil, err
+	}
+
+	filterFuncs := f.DefaultResourceFilterFunc()
+	filterOpts := &kubectl.PrintOptions{ShowAll: false}
+	_, items, err := cmdutil.FilterResourceList(obj, filterFuncs, filterOpts)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := make([]Resource, 0, len(items))
+	for _, item := range items {
+		info, err := resourceMapper.InfoForObject(item, nil)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, Resource{info.Mapping.Resource, info.Name})
 	}
 
 	return ret, nil
