@@ -40,6 +40,7 @@ type kubesh struct {
 	progname   string
 	root       *cobra.Command
 	factory    *cmdutil.Factory
+	out        *NewlineEnsuringWriter
 }
 
 func NewKubesh() *kubesh {
@@ -48,6 +49,7 @@ func NewKubesh() *kubesh {
 		factory:  factory,
 		finder:   TimeoutFinder{Resourceful{factory}, time.Second * 2},
 		progname: os.Args[0],
+		out:      &NewlineEnsuringWriter{delegate: os.Stdout},
 	}
 	sh.root = sh.newRootCommand()
 	completer := NewCompleter(sh.root, sh.finder, &sh.context)
@@ -82,8 +84,9 @@ func (sh *kubesh) Run() {
 			args, _ = applyContext(sh.context, args, cmd)
 			sh.runKubeCommand(cmd, args)
 		}
-		// FIXME: if the command output something w/o a trailing \n, it
-		// won't show
+		// if the command output something w/o a trailing \n, it won't
+		// show, so we make sure one exists
+		sh.out.EnsureNewline()
 	}
 }
 
@@ -127,7 +130,7 @@ func (sh *kubesh) runExec(args []string) {
 }
 
 func (sh *kubesh) newRootCommand() *cobra.Command {
-	root := cmd.NewKubectlCommand(sh.factory, os.Stdin, os.Stdout, os.Stderr)
+	root := cmd.NewKubectlCommand(sh.factory, os.Stdin, sh.out, os.Stderr)
 	get, _, err := root.Find([]string{"get"})
 	if err != nil {
 		panic(err)
