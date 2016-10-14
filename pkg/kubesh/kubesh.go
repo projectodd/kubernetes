@@ -78,7 +78,7 @@ func (sh *kubesh) Run() {
 		args, err := tokenize(line)
 		if err != nil {
 			fmt.Println(err)
-		} else {
+		} else if len(args) > 0 {
 			cmd := sh.newRootCommand()
 			// TODO: what do we do with an error here? do we care?
 			args, _ = applyContext(sh.context, args, cmd)

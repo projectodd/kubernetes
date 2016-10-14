@@ -19,19 +19,22 @@ import "io"
 type NewlineEnsuringWriter struct {
 	delegate io.Writer
 	lastByte byte
+	written  bool
 }
 
 func (w *NewlineEnsuringWriter) Write(data []byte) (int, error) {
 	if len(data) > 0 {
 		w.lastByte = data[len(data)-1]
+		w.written = true
 	}
 
 	return w.delegate.Write(data)
 }
 
 func (w *NewlineEnsuringWriter) EnsureNewline() error {
-	if w.lastByte != '\n' {
+	if w.written && w.lastByte != '\n' {
 		_, err := w.Write([]byte{'\n'})
+		w.written = false
 
 		return err
 	}
