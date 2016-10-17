@@ -16,7 +16,6 @@ package kubesh
 
 import (
 	"github.com/renstrom/dedent"
-	"github.com/spf13/cobra"
 
 	"k8s.io/kubernetes/pkg/kubectl"
 )
@@ -59,19 +58,13 @@ func setContextCommand(sh *kubesh, args []string) (err error) {
 	return
 }
 
-func applyContext(context []string, args []string, rootCommand *cobra.Command) (newArgs []string, err error) {
+func applyContext(context []string, args []string, cmd Command) (newArgs []string, err error) {
 	if len(args) == 0 {
 		return
 	}
 	newArgs = append(newArgs, args[0])
 
 	if len(context) > 0 {
-		subcmd, _, err := rootCommand.Find(args[:1])
-		if err != nil {
-			return args, err
-		}
-		cmd := KubectlCommand{subcmd}
-
 		// poor man's set
 		resourceTypes := map[string]struct{}{}
 		for _, t := range cmd.ResourceTypes() {

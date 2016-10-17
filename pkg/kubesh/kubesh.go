@@ -38,7 +38,6 @@ type kubesh struct {
 	context    []string
 	lineReader *readline.Instance
 	progname   string
-	root       *cobra.Command
 	factory    *cmdutil.Factory
 	out        *NewlineEnsuringWriter
 }
@@ -51,8 +50,7 @@ func NewKubesh() *kubesh {
 		progname: os.Args[0],
 		out:      &NewlineEnsuringWriter{delegate: os.Stdout},
 	}
-	sh.root = sh.newRootCommand()
-	completer := NewCompleter(sh.root, sh.finder, &sh.context)
+	completer := NewCompleter(sh.newRootCommand(), sh.finder, &sh.context)
 	sh.lineReader, _ = readline.NewEx(&readline.Config{
 		Prompt:       prompt([]string{}),
 		AutoComplete: completer,
@@ -79,10 +77,10 @@ func (sh *kubesh) Run() {
 		if err != nil {
 			fmt.Println(err)
 		} else if len(args) > 0 {
-			cmd := sh.newRootCommand()
+			cmd := sh.findCommand(args)
 			// TODO: what do we do with an error here? do we care?
 			args, _ = applyContext(sh.context, args, cmd)
-			sh.runKubeCommand(cmd, args)
+			sh.runCommand(cmd, args)
 		}
 		// if the command output something w/o a trailing \n, it won't
 		// show, so we make sure one exists
@@ -91,22 +89,27 @@ func (sh *kubesh) Run() {
 }
 
 func (sh *kubesh) Execute(args []string) {
-	sh.root.SetArgs(args)
-	sh.root.Execute()
+	cmd := sh.newRootCommand()
+	cmd.SetArgs(args)
+	cmd.Execute()
 }
 
-func (sh *kubesh) runKubeCommand(kubectl *cobra.Command, args []string) {
+func (sh *kubesh) findCommand(args []string) Command {
+	root := sh.newRootCommand()
+	cmd, _, _ := root.Find(args)
+	return KubectlCommand{cmd}
+}
+
+func (sh *kubesh) runCommand(cmd Command, args []string) {
 	defer func() {
 		// Ignore any panics from kubectl
 		recover()
 	}()
-	subcommand, _, _ := kubectl.Find(args)
-	switch subcommand.Name() {
+	switch cmd.Name() {
 	case "proxy", "attach":
 		sh.runExec(args)
 	default:
-		kubectl.SetArgs(args)
-		kubectl.Execute()
+		sh.Execute(args)
 	}
 }
 
