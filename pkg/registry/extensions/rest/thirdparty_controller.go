@@ -22,7 +22,7 @@ import (
 
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/apis/extensions"
-	thirdpartyresourceetcd "k8s.io/kubernetes/pkg/registry/extensions/thirdpartyresource/etcd"
+	extensionsclient "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/extensions/internalversion"
 	"k8s.io/kubernetes/pkg/registry/extensions/thirdpartyresourcedata"
 	"k8s.io/kubernetes/pkg/runtime"
 	"k8s.io/kubernetes/pkg/util/sets"
@@ -47,11 +47,11 @@ const thirdpartyprefix = "/apis"
 // ThirdPartyController is a control loop that knows how to synchronize ThirdPartyResource objects with
 // RESTful resources which are present in the API server.
 type ThirdPartyController struct {
-	master                     ResourceInterface
-	thirdPartyResourceRegistry *thirdpartyresourceetcd.REST
+	master ResourceInterface
+	client extensionsclient.ThirdPartyResourcesGetter
 }
 
-// Synchronize a single resource with RESTful resources on the master
+// SyncOneResource synchronizes a single resource with RESTful resources on the master
 func (t *ThirdPartyController) SyncOneResource(rsrc *extensions.ThirdPartyResource) error {
 	// TODO: we also need to test if the existing installed resource matches the resource we are sync-ing.
 	// Currently, if there is an older, incompatible resource installed, we won't remove it.  We should detect
@@ -68,7 +68,7 @@ func (t *ThirdPartyController) SyncOneResource(rsrc *extensions.ThirdPartyResour
 
 // Synchronize all resources with RESTful resources on the master
 func (t *ThirdPartyController) SyncResources() error {
-	list, err := t.thirdPartyResourceRegistry.List(api.NewDefaultContext(), nil)
+	list, err := t.client.ThirdPartyResources().List(api.ListOptions{})
 	if err != nil {
 		return err
 	}

@@ -97,6 +97,7 @@ run-gcloud-compute-with-retries instances create "${MASTER_NAME}" \
   --tags "${MASTER_TAG}" \
   --network "${NETWORK}" \
   --scopes "storage-ro,compute-rw,logging-write" \
+  --boot-disk-size "${MASTER_ROOT_DISK_SIZE}" \
   --disk "name=${MASTER_NAME}-pd,device-name=master-pd,mode=rw,boot=no,auto-delete=no"
 
 run-gcloud-compute-with-retries firewall-rules create "${INSTANCE_PREFIX}-kubemark-master-https" \
@@ -147,7 +148,7 @@ gcloud compute copy-files --zone="${ZONE}" --project="${PROJECT}" \
 
 gcloud compute ssh "${MASTER_NAME}" --zone="${ZONE}" --project="${PROJECT}" \
   --command="chmod a+x configure-kubectl.sh && chmod a+x start-kubemark-master.sh && \
-             sudo ./start-kubemark-master.sh ${EVENT_STORE_IP:-127.0.0.1} ${NUM_NODES:-0} ${TEST_ETCD_VERSION:-}"
+             sudo ./start-kubemark-master.sh ${EVENT_STORE_IP:-127.0.0.1} ${NUM_NODES:-0} ${ETCD_IMAGE:-}"
 
 # create kubeconfig for Kubelet:
 KUBECONFIG_CONTENTS=$(echo "apiVersion: v1
@@ -264,8 +265,10 @@ until [[ "${ready}" -ge "${NUM_NODES}" ]]; do
       echo "Got error while trying to list Nodes. Probably API server is down."
     fi
     pods=$("${KUBECTL}" get pods --namespace=kubemark) || true
+    running=$(($(echo "${pods}" | grep "Running" | wc -l)))
+    echo "${running} HollowNode pods are reported as 'Running'"
     not_running=$(($(echo "${pods}" | grep -v "Running" | wc -l) - 1))
-    echo "${not_running} HollowNode pods are reported as not running"
+    echo "${not_running} HollowNode pods are reported as NOT 'Running'"
     echo $(echo "${pods}" | grep -v "Running")
     exit 1
   fi

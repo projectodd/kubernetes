@@ -27,6 +27,7 @@ import (
 	"path"
 	rt "runtime"
 	"strconv"
+	"strings"
 	"time"
 
 	"k8s.io/kubernetes/pkg/admission"
@@ -40,7 +41,9 @@ import (
 	utilerrors "k8s.io/kubernetes/pkg/util/errors"
 	"k8s.io/kubernetes/pkg/util/flushwriter"
 	utilruntime "k8s.io/kubernetes/pkg/util/runtime"
+	"k8s.io/kubernetes/pkg/util/sets"
 	"k8s.io/kubernetes/pkg/util/wsstream"
+	"k8s.io/kubernetes/pkg/version"
 
 	"github.com/emicklei/go-restful"
 	"github.com/golang/glog"
@@ -66,10 +69,6 @@ type APIGroupVersion struct {
 
 	// GroupVersion is the external group version
 	GroupVersion unversioned.GroupVersion
-
-	// RequestInfoResolver is used to parse URLs for the legacy proxy handler.  Don't use this for anything else
-	// TODO: refactor proxy handler to use sub resources
-	RequestInfoResolver *RequestInfoResolver
 
 	// OptionsExternalVersion controls the Kubernetes APIVersion used for common objects in the apiserver
 	// schema like api.Status, api.DeleteOptions, and api.ListOptions. Other implementors may
@@ -175,7 +174,6 @@ func (g *APIGroupVersion) newInstaller() *APIInstaller {
 	prefix := path.Join(g.Root, g.GroupVersion.Group, g.GroupVersion.Version)
 	installer := &APIInstaller{
 		group:             g,
-		info:              g.RequestInfoResolver,
 		prefix:            prefix,
 		minRequestTimeout: g.MinRequestTimeout,
 	}
@@ -216,6 +214,7 @@ func AddApiWebService(s runtime.NegotiatedSerializer, container *restful.Contain
 	// Because in release 1.1, /api returns response with empty APIVersion, we
 	// use StripVersionNegotiatedSerializer to keep the response backwards
 	// compatible.
+	mediaTypes, _ := mediaTypesForSerializer(s)
 	ss := StripVersionNegotiatedSerializer{s}
 	versionHandler := APIVersionHandler(ss, getAPIVersionsFunc)
 	ws := new(restful.WebService)
@@ -224,8 +223,8 @@ func AddApiWebService(s runtime.NegotiatedSerializer, container *restful.Contain
 	ws.Route(ws.GET("/").To(versionHandler).
 		Doc("get available API versions").
 		Operation("getAPIVersions").
-		Produces(s.SupportedMediaTypes()...).
-		Consumes(s.SupportedMediaTypes()...).
+		Produces(mediaTypes...).
+		Consumes(mediaTypes...).
 		Writes(unversioned.APIVersions{}))
 	container.Add(ws)
 }
@@ -282,6 +281,7 @@ func NewApisWebService(s runtime.NegotiatedSerializer, apiPrefix string, f func(
 	// use StripVersionNegotiatedSerializer to keep the response backwards
 	// compatible.
 	ss := StripVersionNegotiatedSerializer{s}
+	mediaTypes, _ := mediaTypesForSerializer(s)
 	rootAPIHandler := RootAPIHandler(ss, f)
 	ws := new(restful.WebService)
 	ws.Path(apiPrefix)
@@ -289,8 +289,8 @@ func NewApisWebService(s runtime.NegotiatedSerializer, apiPrefix string, f func(
 	ws.Route(ws.GET("/").To(rootAPIHandler).
 		Doc("get available API versions").
 		Operation("getAPIVersions").
-		Produces(s.SupportedMediaTypes()...).
-		Consumes(s.SupportedMediaTypes()...).
+		Produces(mediaTypes...).
+		Consumes(mediaTypes...).
 		Writes(unversioned.APIGroupList{}))
 	return ws
 }
@@ -305,6 +305,7 @@ func NewGroupWebService(s runtime.NegotiatedSerializer, path string, group unver
 		// response backwards compatible.
 		ss = StripVersionNegotiatedSerializer{s}
 	}
+	mediaTypes, _ := mediaTypesForSerializer(s)
 	groupHandler := GroupHandler(ss, group)
 	ws := new(restful.WebService)
 	ws.Path(path)
@@ -312,8 +313,8 @@ func NewGroupWebService(s runtime.NegotiatedSerializer, path string, group unver
 	ws.Route(ws.GET("/").To(groupHandler).
 		Doc("get information of a group").
 		Operation("getAPIGroup").
-		Produces(s.SupportedMediaTypes()...).
-		Consumes(s.SupportedMediaTypes()...).
+		Produces(mediaTypes...).
+		Consumes(mediaTypes...).
 		Writes(unversioned.APIGroup{}))
 	return ws
 }
@@ -328,12 +329,13 @@ func AddSupportedResourcesWebService(s runtime.NegotiatedSerializer, ws *restful
 		// keep the response backwards compatible.
 		ss = StripVersionNegotiatedSerializer{s}
 	}
+	mediaTypes, _ := mediaTypesForSerializer(s)
 	resourceHandler := SupportedResourcesHandler(ss, groupVersion, lister)
 	ws.Route(ws.GET("/").To(resourceHandler).
 		Doc("get available resources").
 		Operation("getAPIResources").
-		Produces(s.SupportedMediaTypes()...).
-		Consumes(s.SupportedMediaTypes()...).
+		Produces(mediaTypes...).
+		Consumes(mediaTypes...).
 		Writes(unversioned.APIResourceList{}))
 }
 
@@ -344,10 +346,48 @@ func APIVersionHandler(s runtime.NegotiatedSerializer, getAPIVersionsFunc func(r
 	}
 }
 
+// TODO: Remove in 1.6. Returns if kubectl is older than v1.5.0
+func isOldKubectl(userAgent string) bool {
+	// example userAgent string: kubectl-1.3/v1.3.8 (linux/amd64) kubernetes/e328d5b
+	if !strings.Contains(userAgent, "kubectl") {
+		return false
+	}
+	userAgent = strings.Split(userAgent, " ")[0]
+	subs := strings.Split(userAgent, "/")
+	if len(subs) != 2 {
+		return false
+	}
+	kubectlVersion, versionErr := version.Parse(subs[1])
+	if versionErr != nil {
+		return false
+	}
+	return kubectlVersion.LT(version.MustParse("v1.5.0"))
+}
+
+// TODO: Remove in 1.6. This is for backward compatibility with 1.4 kubectl.
+// See https://github.com/kubernetes/kubernetes/issues/35791
+var groupsWithNewVersionsIn1_5 = sets.NewString("apps", "policy")
+
+// TODO: Remove in 1.6.
+func filterAPIGroups(req *restful.Request, groups []unversioned.APIGroup) []unversioned.APIGroup {
+	if !isOldKubectl(req.HeaderParameter("User-Agent")) {
+		return groups
+	}
+	// hide API group that has new versions added in 1.5.
+	var ret []unversioned.APIGroup
+	for _, group := range groups {
+		if groupsWithNewVersionsIn1_5.Has(group.Name) {
+			continue
+		}
+		ret = append(ret, group)
+	}
+	return ret
+}
+
 // RootAPIHandler returns a handler which will list the provided groups and versions as available.
 func RootAPIHandler(s runtime.NegotiatedSerializer, f func(req *restful.Request) []unversioned.APIGroup) restful.RouteFunction {
 	return func(req *restful.Request, resp *restful.Response) {
-		writeNegotiated(s, unversioned.GroupVersion{}, resp.ResponseWriter, req.Request, http.StatusOK, &unversioned.APIGroupList{Groups: f(req)})
+		writeNegotiated(s, unversioned.GroupVersion{}, resp.ResponseWriter, req.Request, http.StatusOK, &unversioned.APIGroupList{Groups: filterAPIGroups(req, f(req))})
 	}
 }
 
@@ -372,40 +412,42 @@ func SupportedResourcesHandler(s runtime.NegotiatedSerializer, groupVersion unve
 // directly to the response body. If content type is returned it is used, otherwise the content type will
 // be "application/octet-stream". All other objects are sent to standard JSON serialization.
 func write(statusCode int, gv unversioned.GroupVersion, s runtime.NegotiatedSerializer, object runtime.Object, w http.ResponseWriter, req *http.Request) {
-	if stream, ok := object.(rest.ResourceStreamer); ok {
-		out, flush, contentType, err := stream.InputStream(gv.String(), req.Header.Get("Accept"))
-		if err != nil {
-			errorNegotiated(err, s, gv, w, req)
-			return
-		}
-		if out == nil {
-			// No output provided - return StatusNoContent
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		defer out.Close()
-
-		if wsstream.IsWebSocketRequest(req) {
-			r := wsstream.NewReader(out, true, wsstream.NewDefaultReaderProtocols())
-			if err := r.Copy(w, req); err != nil {
-				utilruntime.HandleError(fmt.Errorf("error encountered while streaming results via websocket: %v", err))
-			}
-			return
-		}
-
-		if len(contentType) == 0 {
-			contentType = "application/octet-stream"
-		}
-		w.Header().Set("Content-Type", contentType)
-		w.WriteHeader(statusCode)
-		writer := w.(io.Writer)
-		if flush {
-			writer = flushwriter.Wrap(w)
-		}
-		io.Copy(writer, out)
+	stream, ok := object.(rest.ResourceStreamer)
+	if !ok {
+		writeNegotiated(s, gv, w, req, statusCode, object)
 		return
 	}
-	writeNegotiated(s, gv, w, req, statusCode, object)
+
+	out, flush, contentType, err := stream.InputStream(gv.String(), req.Header.Get("Accept"))
+	if err != nil {
+		errorNegotiated(err, s, gv, w, req)
+		return
+	}
+	if out == nil {
+		// No output provided - return StatusNoContent
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	defer out.Close()
+
+	if wsstream.IsWebSocketRequest(req) {
+		r := wsstream.NewReader(out, true, wsstream.NewDefaultReaderProtocols())
+		if err := r.Copy(w, req); err != nil {
+			utilruntime.HandleError(fmt.Errorf("error encountered while streaming results via websocket: %v", err))
+		}
+		return
+	}
+
+	if len(contentType) == 0 {
+		contentType = "application/octet-stream"
+	}
+	w.Header().Set("Content-Type", contentType)
+	w.WriteHeader(statusCode)
+	writer := w.(io.Writer)
+	if flush {
+		writer = flushwriter.Wrap(w)
+	}
+	io.Copy(writer, out)
 }
 
 // writeNegotiated renders an object in the content type negotiated by the client
@@ -420,7 +462,7 @@ func writeNegotiated(s runtime.NegotiatedSerializer, gv unversioned.GroupVersion
 	w.Header().Set("Content-Type", serializer.MediaType)
 	w.WriteHeader(statusCode)
 
-	encoder := s.EncoderForVersion(serializer, gv)
+	encoder := s.EncoderForVersion(serializer.Serializer, gv)
 	if err := encoder.Encode(object, w); err != nil {
 		errorJSONFatal(err, encoder, w)
 	}

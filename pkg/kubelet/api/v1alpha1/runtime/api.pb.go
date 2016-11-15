@@ -27,10 +27,11 @@ It is generated from these files:
 It has these top-level messages:
 	VersionRequest
 	VersionResponse
-	DNSOption
+	DNSConfig
 	PortMapping
 	Mount
 	NamespaceOption
+	LinuxSandboxSecurityContext
 	LinuxPodSandboxConfig
 	PodSandboxMetadata
 	PodSandboxConfig
@@ -55,9 +56,10 @@ It has these top-level messages:
 	LinuxContainerResources
 	SELinuxOption
 	Capability
+	LinuxContainerSecurityContext
 	LinuxContainerConfig
-	LinuxUser
 	ContainerMetadata
+	Device
 	ContainerConfig
 	CreateContainerRequest
 	CreateContainerResponse
@@ -74,8 +76,14 @@ It has these top-level messages:
 	ContainerStatusRequest
 	ContainerStatus
 	ContainerStatusResponse
+	ExecSyncRequest
+	ExecSyncResponse
 	ExecRequest
 	ExecResponse
+	AttachRequest
+	AttachResponse
+	PortForwardRequest
+	PortForwardResponse
 	ImageFilter
 	ListImagesRequest
 	Image
@@ -87,6 +95,14 @@ It has these top-level messages:
 	PullImageResponse
 	RemoveImageRequest
 	RemoveImageResponse
+	NetworkConfig
+	RuntimeConfig
+	UpdateRuntimeConfigRequest
+	UpdateRuntimeConfigResponse
+	RuntimeCondition
+	RuntimeStatus
+	StatusRequest
+	StatusResponse
 */
 package runtime
 
@@ -142,60 +158,60 @@ func (x *Protocol) UnmarshalJSON(data []byte) error {
 }
 func (Protocol) EnumDescriptor() ([]byte, []int) { return fileDescriptorApi, []int{0} }
 
-type PodSandBoxState int32
+type PodSandboxState int32
 
 const (
-	PodSandBoxState_READY    PodSandBoxState = 0
-	PodSandBoxState_NOTREADY PodSandBoxState = 1
+	PodSandboxState_SANDBOX_READY    PodSandboxState = 0
+	PodSandboxState_SANDBOX_NOTREADY PodSandboxState = 1
 )
 
-var PodSandBoxState_name = map[int32]string{
-	0: "READY",
-	1: "NOTREADY",
+var PodSandboxState_name = map[int32]string{
+	0: "SANDBOX_READY",
+	1: "SANDBOX_NOTREADY",
 }
-var PodSandBoxState_value = map[string]int32{
-	"READY":    0,
-	"NOTREADY": 1,
+var PodSandboxState_value = map[string]int32{
+	"SANDBOX_READY":    0,
+	"SANDBOX_NOTREADY": 1,
 }
 
-func (x PodSandBoxState) Enum() *PodSandBoxState {
-	p := new(PodSandBoxState)
+func (x PodSandboxState) Enum() *PodSandboxState {
+	p := new(PodSandboxState)
 	*p = x
 	return p
 }
-func (x PodSandBoxState) String() string {
-	return proto.EnumName(PodSandBoxState_name, int32(x))
+func (x PodSandboxState) String() string {
+	return proto.EnumName(PodSandboxState_name, int32(x))
 }
-func (x *PodSandBoxState) UnmarshalJSON(data []byte) error {
-	value, err := proto.UnmarshalJSONEnum(PodSandBoxState_value, data, "PodSandBoxState")
+func (x *PodSandboxState) UnmarshalJSON(data []byte) error {
+	value, err := proto.UnmarshalJSONEnum(PodSandboxState_value, data, "PodSandboxState")
 	if err != nil {
 		return err
 	}
-	*x = PodSandBoxState(value)
+	*x = PodSandboxState(value)
 	return nil
 }
-func (PodSandBoxState) EnumDescriptor() ([]byte, []int) { return fileDescriptorApi, []int{1} }
+func (PodSandboxState) EnumDescriptor() ([]byte, []int) { return fileDescriptorApi, []int{1} }
 
 type ContainerState int32
 
 const (
-	ContainerState_CREATED ContainerState = 0
-	ContainerState_RUNNING ContainerState = 1
-	ContainerState_EXITED  ContainerState = 2
-	ContainerState_UNKNOWN ContainerState = 3
+	ContainerState_CONTAINER_CREATED ContainerState = 0
+	ContainerState_CONTAINER_RUNNING ContainerState = 1
+	ContainerState_CONTAINER_EXITED  ContainerState = 2
+	ContainerState_CONTAINER_UNKNOWN ContainerState = 3
 )
 
 var ContainerState_name = map[int32]string{
-	0: "CREATED",
-	1: "RUNNING",
-	2: "EXITED",
-	3: "UNKNOWN",
+	0: "CONTAINER_CREATED",
+	1: "CONTAINER_RUNNING",
+	2: "CONTAINER_EXITED",
+	3: "CONTAINER_UNKNOWN",
 }
 var ContainerState_value = map[string]int32{
-	"CREATED": 0,
-	"RUNNING": 1,
-	"EXITED":  2,
-	"UNKNOWN": 3,
+	"CONTAINER_CREATED": 0,
+	"CONTAINER_RUNNING": 1,
+	"CONTAINER_EXITED":  2,
+	"CONTAINER_UNKNOWN": 3,
 }
 
 func (x ContainerState) Enum() *ContainerState {
@@ -217,7 +233,7 @@ func (x *ContainerState) UnmarshalJSON(data []byte) error {
 func (ContainerState) EnumDescriptor() ([]byte, []int) { return fileDescriptorApi, []int{2} }
 
 type VersionRequest struct {
-	// The version of kubelet runtime API.
+	// Version of the kubelet runtime API.
 	Version          *string `protobuf:"bytes,1,opt,name=version" json:"version,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
@@ -235,14 +251,14 @@ func (m *VersionRequest) GetVersion() string {
 }
 
 type VersionResponse struct {
-	// The version of the kubelet runtime API.
+	// Version of the kubelet runtime API.
 	Version *string `protobuf:"bytes,1,opt,name=version" json:"version,omitempty"`
-	// The name of the container runtime.
+	// Name of the container runtime.
 	RuntimeName *string `protobuf:"bytes,2,opt,name=runtime_name,json=runtimeName" json:"runtime_name,omitempty"`
-	// The version of the container runtime. The string should be
+	// Version of the container runtime. The string must be
 	// semver-compatible.
 	RuntimeVersion *string `protobuf:"bytes,3,opt,name=runtime_version,json=runtimeVersion" json:"runtime_version,omitempty"`
-	// The API version of the container runtime. The string should be
+	// API version of the container runtime. The string must be
 	// semver-compatible.
 	RuntimeApiVersion *string `protobuf:"bytes,4,opt,name=runtime_api_version,json=runtimeApiVersion" json:"runtime_api_version,omitempty"`
 	XXX_unrecognized  []byte  `json:"-"`
@@ -281,46 +297,54 @@ func (m *VersionResponse) GetRuntimeApiVersion() string {
 	return ""
 }
 
-// DNSOption specifies the DNS servers and search domains.
-type DNSOption struct {
+// DNSConfig specifies the DNS servers and search domains of a sandbox.
+type DNSConfig struct {
 	// List of DNS servers of the cluster.
 	Servers []string `protobuf:"bytes,1,rep,name=servers" json:"servers,omitempty"`
 	// List of DNS search domains of the cluster.
-	Searches         []string `protobuf:"bytes,2,rep,name=searches" json:"searches,omitempty"`
+	Searches []string `protobuf:"bytes,2,rep,name=searches" json:"searches,omitempty"`
+	// List of DNS options. See https://linux.die.net/man/5/resolv.conf
+	// for all available options.
+	Options          []string `protobuf:"bytes,3,rep,name=options" json:"options,omitempty"`
 	XXX_unrecognized []byte   `json:"-"`
 }
 
-func (m *DNSOption) Reset()                    { *m = DNSOption{} }
-func (m *DNSOption) String() string            { return proto.CompactTextString(m) }
-func (*DNSOption) ProtoMessage()               {}
-func (*DNSOption) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{2} }
+func (m *DNSConfig) Reset()                    { *m = DNSConfig{} }
+func (m *DNSConfig) String() string            { return proto.CompactTextString(m) }
+func (*DNSConfig) ProtoMessage()               {}
+func (*DNSConfig) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{2} }
 
-func (m *DNSOption) GetServers() []string {
+func (m *DNSConfig) GetServers() []string {
 	if m != nil {
 		return m.Servers
 	}
 	return nil
 }
 
-func (m *DNSOption) GetSearches() []string {
+func (m *DNSConfig) GetSearches() []string {
 	if m != nil {
 		return m.Searches
 	}
 	return nil
 }
 
-// PortMapping specifies the port mapping configurations of sandbox
+func (m *DNSConfig) GetOptions() []string {
+	if m != nil {
+		return m.Options
+	}
+	return nil
+}
+
+// PortMapping specifies the port mapping configurations of a sandbox.
 type PortMapping struct {
-	// The name of the port mapping
-	Name *string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
-	// The protocol of the port mapping.
-	Protocol *Protocol `protobuf:"varint,2,opt,name=protocol,enum=runtime.Protocol" json:"protocol,omitempty"`
-	// The port number within the container.
-	ContainerPort *int32 `protobuf:"varint,3,opt,name=container_port,json=containerPort" json:"container_port,omitempty"`
-	// The port number on the host.
-	HostPort *int32 `protobuf:"varint,4,opt,name=host_port,json=hostPort" json:"host_port,omitempty"`
-	// The host IP.
-	HostIp           *string `protobuf:"bytes,5,opt,name=host_ip,json=hostIp" json:"host_ip,omitempty"`
+	// Protocol of the port mapping.
+	Protocol *Protocol `protobuf:"varint,1,opt,name=protocol,enum=runtime.Protocol" json:"protocol,omitempty"`
+	// Port number within the container.
+	ContainerPort *int32 `protobuf:"varint,2,opt,name=container_port,json=containerPort" json:"container_port,omitempty"`
+	// Port number on the host.
+	HostPort *int32 `protobuf:"varint,3,opt,name=host_port,json=hostPort" json:"host_port,omitempty"`
+	// Host IP.
+	HostIp           *string `protobuf:"bytes,4,opt,name=host_ip,json=hostIp" json:"host_ip,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
 
@@ -328,13 +352,6 @@ func (m *PortMapping) Reset()                    { *m = PortMapping{} }
 func (m *PortMapping) String() string            { return proto.CompactTextString(m) }
 func (*PortMapping) ProtoMessage()               {}
 func (*PortMapping) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{3} }
-
-func (m *PortMapping) GetName() string {
-	if m != nil && m.Name != nil {
-		return *m.Name
-	}
-	return ""
-}
 
 func (m *PortMapping) GetProtocol() Protocol {
 	if m != nil && m.Protocol != nil {
@@ -364,18 +381,16 @@ func (m *PortMapping) GetHostIp() string {
 	return ""
 }
 
-// Mount specifies the volume mount for the sandbox
+// Mount specifies a host volume to mount into a container.
 type Mount struct {
-	// The name of the volume mount.
-	Name *string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
-	// The path of the mount within the container.
-	ContainerPath *string `protobuf:"bytes,2,opt,name=container_path,json=containerPath" json:"container_path,omitempty"`
-	// The path of the mount on the host.
-	HostPath *string `protobuf:"bytes,3,opt,name=host_path,json=hostPath" json:"host_path,omitempty"`
+	// Path of the mount within the container.
+	ContainerPath *string `protobuf:"bytes,1,opt,name=container_path,json=containerPath" json:"container_path,omitempty"`
+	// Path of the mount on the host.
+	HostPath *string `protobuf:"bytes,2,opt,name=host_path,json=hostPath" json:"host_path,omitempty"`
 	// If set, the mount is read-only.
-	Readonly *bool `protobuf:"varint,4,opt,name=readonly" json:"readonly,omitempty"`
-	// If set, the mount needs SELinux relabeling
-	SelinuxRelabel   *bool  `protobuf:"varint,5,opt,name=selinux_relabel,json=selinuxRelabel" json:"selinux_relabel,omitempty"`
+	Readonly *bool `protobuf:"varint,3,opt,name=readonly" json:"readonly,omitempty"`
+	// If set, the mount needs SELinux relabeling.
+	SelinuxRelabel   *bool  `protobuf:"varint,4,opt,name=selinux_relabel,json=selinuxRelabel" json:"selinux_relabel,omitempty"`
 	XXX_unrecognized []byte `json:"-"`
 }
 
@@ -383,13 +398,6 @@ func (m *Mount) Reset()                    { *m = Mount{} }
 func (m *Mount) String() string            { return proto.CompactTextString(m) }
 func (*Mount) ProtoMessage()               {}
 func (*Mount) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{4} }
-
-func (m *Mount) GetName() string {
-	if m != nil && m.Name != nil {
-		return *m.Name
-	}
-	return ""
-}
 
 func (m *Mount) GetContainerPath() string {
 	if m != nil && m.ContainerPath != nil {
@@ -423,9 +431,9 @@ func (m *Mount) GetSelinuxRelabel() bool {
 type NamespaceOption struct {
 	// If set, use the host's network namespace.
 	HostNetwork *bool `protobuf:"varint,1,opt,name=host_network,json=hostNetwork" json:"host_network,omitempty"`
-	// If set, use the host's pid namesapce.
+	// If set, use the host's PID namespace.
 	HostPid *bool `protobuf:"varint,2,opt,name=host_pid,json=hostPid" json:"host_pid,omitempty"`
-	// If set, use the host's ipc namespace.
+	// If set, use the host's IPC namespace.
 	HostIpc          *bool  `protobuf:"varint,3,opt,name=host_ipc,json=hostIpc" json:"host_ipc,omitempty"`
 	XXX_unrecognized []byte `json:"-"`
 }
@@ -456,23 +464,84 @@ func (m *NamespaceOption) GetHostIpc() bool {
 	return false
 }
 
-// LinuxPodSandboxConfig holds platform-specific configuraions for Linux
+// LinuxSandboxSecurityContext holds linux security configuration that will be
+// applied to a sandbox. Note that:
+// 1) It does not apply to containers in the pods.
+// 2) It may not be applicable to a PodSandbox which does not contain any running
+//    process.
+type LinuxSandboxSecurityContext struct {
+	// Configurations for the sandbox's namespaces.
+	// This will be used only if the PodSandbox uses namespace for isolation.
+	NamespaceOptions *NamespaceOption `protobuf:"bytes,1,opt,name=namespace_options,json=namespaceOptions" json:"namespace_options,omitempty"`
+	// Optional SELinux context to be applied.
+	SelinuxOptions *SELinuxOption `protobuf:"bytes,2,opt,name=selinux_options,json=selinuxOptions" json:"selinux_options,omitempty"`
+	// User to run the entrypoint of the sandbox process. Can be either UID or
+	// user name.
+	RunAsUser *string `protobuf:"bytes,3,opt,name=run_as_user,json=runAsUser" json:"run_as_user,omitempty"`
+	// If set, the root filesystem of the sandbox is read-only.
+	ReadonlyRootfs *bool `protobuf:"varint,4,opt,name=readonly_rootfs,json=readonlyRootfs" json:"readonly_rootfs,omitempty"`
+	// List of groups applied to the first process run in the sandbox, in
+	// addition to the sandbox's primary GID.
+	SupplementalGroups []int64 `protobuf:"varint,5,rep,name=supplemental_groups,json=supplementalGroups" json:"supplemental_groups,omitempty"`
+	XXX_unrecognized   []byte  `json:"-"`
+}
+
+func (m *LinuxSandboxSecurityContext) Reset()                    { *m = LinuxSandboxSecurityContext{} }
+func (m *LinuxSandboxSecurityContext) String() string            { return proto.CompactTextString(m) }
+func (*LinuxSandboxSecurityContext) ProtoMessage()               {}
+func (*LinuxSandboxSecurityContext) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{6} }
+
+func (m *LinuxSandboxSecurityContext) GetNamespaceOptions() *NamespaceOption {
+	if m != nil {
+		return m.NamespaceOptions
+	}
+	return nil
+}
+
+func (m *LinuxSandboxSecurityContext) GetSelinuxOptions() *SELinuxOption {
+	if m != nil {
+		return m.SelinuxOptions
+	}
+	return nil
+}
+
+func (m *LinuxSandboxSecurityContext) GetRunAsUser() string {
+	if m != nil && m.RunAsUser != nil {
+		return *m.RunAsUser
+	}
+	return ""
+}
+
+func (m *LinuxSandboxSecurityContext) GetReadonlyRootfs() bool {
+	if m != nil && m.ReadonlyRootfs != nil {
+		return *m.ReadonlyRootfs
+	}
+	return false
+}
+
+func (m *LinuxSandboxSecurityContext) GetSupplementalGroups() []int64 {
+	if m != nil {
+		return m.SupplementalGroups
+	}
+	return nil
+}
+
+// LinuxPodSandboxConfig holds platform-specific configurations for Linux
 // host platforms and Linux-based containers.
 type LinuxPodSandboxConfig struct {
-	// The parent cgroup of the pod sandbox.
+	// Parent cgroup of the PodSandbox.
 	// The cgroupfs style syntax will be used, but the container runtime can
-	// convert it to systemd semantices if needed.
+	// convert it to systemd semantics if needed.
 	CgroupParent *string `protobuf:"bytes,1,opt,name=cgroup_parent,json=cgroupParent" json:"cgroup_parent,omitempty"`
-	// The configurations for the sandbox's namespaces.
-	// This will be used only if the PodSandbox uses namespace for isolation.
-	NamespaceOptions *NamespaceOption `protobuf:"bytes,2,opt,name=namespace_options,json=namespaceOptions" json:"namespace_options,omitempty"`
-	XXX_unrecognized []byte           `json:"-"`
+	// LinuxSandboxSecurityContext holds sandbox security attributes.
+	SecurityContext  *LinuxSandboxSecurityContext `protobuf:"bytes,2,opt,name=security_context,json=securityContext" json:"security_context,omitempty"`
+	XXX_unrecognized []byte                       `json:"-"`
 }
 
 func (m *LinuxPodSandboxConfig) Reset()                    { *m = LinuxPodSandboxConfig{} }
 func (m *LinuxPodSandboxConfig) String() string            { return proto.CompactTextString(m) }
 func (*LinuxPodSandboxConfig) ProtoMessage()               {}
-func (*LinuxPodSandboxConfig) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{6} }
+func (*LinuxPodSandboxConfig) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{7} }
 
 func (m *LinuxPodSandboxConfig) GetCgroupParent() string {
 	if m != nil && m.CgroupParent != nil {
@@ -481,25 +550,25 @@ func (m *LinuxPodSandboxConfig) GetCgroupParent() string {
 	return ""
 }
 
-func (m *LinuxPodSandboxConfig) GetNamespaceOptions() *NamespaceOption {
+func (m *LinuxPodSandboxConfig) GetSecurityContext() *LinuxSandboxSecurityContext {
 	if m != nil {
-		return m.NamespaceOptions
+		return m.SecurityContext
 	}
 	return nil
 }
 
 // PodSandboxMetadata holds all necessary information for building the sandbox name.
 // The container runtime is encouraged to expose the metadata associated with the
-// PodSandbox in its user interface for better user experience. E.g., runtime can
-// construct a unique PodSandboxName based on the metadata.
+// PodSandbox in its user interface for better user experience. For example,
+// the runtime can construct a unique PodSandboxName based on the metadata.
 type PodSandboxMetadata struct {
-	// The pod name of the sandbox. Same as the pod name in the PodSpec.
+	// Pod name of the sandbox. Same as the pod name in the PodSpec.
 	Name *string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
-	// The pod uid of the sandbox. Same as the pod UID in the PodSpec.
+	// Pod UID of the sandbox. Same as the pod UID in the PodSpec.
 	Uid *string `protobuf:"bytes,2,opt,name=uid" json:"uid,omitempty"`
-	// The pod namespace of the sandbox. Same as the pod namespace in the PodSpec.
+	// Pod namespace of the sandbox. Same as the pod namespace in the PodSpec.
 	Namespace *string `protobuf:"bytes,3,opt,name=namespace" json:"namespace,omitempty"`
-	// The attempt number of creating the sandbox.
+	// Attempt number of creating the sandbox.
 	Attempt          *uint32 `protobuf:"varint,4,opt,name=attempt" json:"attempt,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
@@ -507,7 +576,7 @@ type PodSandboxMetadata struct {
 func (m *PodSandboxMetadata) Reset()                    { *m = PodSandboxMetadata{} }
 func (m *PodSandboxMetadata) String() string            { return proto.CompactTextString(m) }
 func (*PodSandboxMetadata) ProtoMessage()               {}
-func (*PodSandboxMetadata) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{7} }
+func (*PodSandboxMetadata) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{8} }
 
 func (m *PodSandboxMetadata) GetName() string {
 	if m != nil && m.Name != nil {
@@ -540,12 +609,12 @@ func (m *PodSandboxMetadata) GetAttempt() uint32 {
 // PodSandboxConfig holds all the required and optional fields for creating a
 // sandbox.
 type PodSandboxConfig struct {
-	// The metadata of the sandbox. This information will uniquely identify
-	// the sandbox, and the runtime should leverage this to ensure correct
+	// Metadata of the sandbox. This information will uniquely identify the
+	// sandbox, and the runtime should leverage this to ensure correct
 	// operation. The runtime may also use this information to improve UX, such
 	// as by constructing a readable name.
 	Metadata *PodSandboxMetadata `protobuf:"bytes,1,opt,name=metadata" json:"metadata,omitempty"`
-	// The hostname of the sandbox.
+	// Hostname of the sandbox.
 	Hostname *string `protobuf:"bytes,2,opt,name=hostname" json:"hostname,omitempty"`
 	// Path to the directory on the host in which container log files are
 	// stored.
@@ -563,14 +632,42 @@ type PodSandboxConfig struct {
 	// https://issues.k8s.io/24677. There *may* be future change of direction
 	// for logging as the discussion carries on.
 	LogDirectory *string `protobuf:"bytes,3,opt,name=log_directory,json=logDirectory" json:"log_directory,omitempty"`
-	// The DNS options for the sandbox.
-	DnsOptions *DNSOption `protobuf:"bytes,4,opt,name=dns_options,json=dnsOptions" json:"dns_options,omitempty"`
-	// The port mappings for the sandbox.
+	// DNS config for the sandbox.
+	DnsConfig *DNSConfig `protobuf:"bytes,4,opt,name=dns_config,json=dnsConfig" json:"dns_config,omitempty"`
+	// Port mappings for the sandbox.
 	PortMappings []*PortMapping `protobuf:"bytes,5,rep,name=port_mappings,json=portMappings" json:"port_mappings,omitempty"`
-	// Labels are key value pairs that may be used to scope and select individual resources.
+	// Key-value pairs that may be used to scope and select individual resources.
 	Labels map[string]string `protobuf:"bytes,6,rep,name=labels" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Annotations is an unstructured key value map that may be set by external
-	// tools to store and retrieve arbitrary metadata.
+	// tools to store and retrieve arbitrary metadata. There are a few features are
+	// driven by annotations, Runtimes could support them optionally:
+	//
+	// 1. AppArmor
+	//
+	//    key: container.apparmor.security.beta.kubernetes.io/<container_name>
+	//    description: apparmor profile for the container.
+	//    value:
+	//      * runtime/default: equivalent to not specifying a profile.
+	//      * localhost/<profile_name>: profile loaded on the node
+	//        (localhost) by name. The possible profile names are detailed at
+	//        http://wiki.apparmor.net/index.php/AppArmor_Core_Policy_Reference
+	//
+	// 2. Seccomp
+	//
+	//      key: security.alpha.kubernetes.io/seccomp/pod
+	//      description: the seccomp profile for the containers of an entire pod.
+	//      value: see below.
+	//
+	//      key: security.alpha.kubernetes.io/seccomp/container/<container name>
+	//      description: the seccomp profile for the container (overides pod).
+	//      values: see below
+	//
+	//      The value of seccomp is runtime agnostic:
+	//      * runtime/default: the default profile for the container runtime
+	//      * unconfined: unconfined profile, ie, no seccomp sandboxing
+	//      * localhost/<profile-name>: the profile installed to the node's
+	//        local seccomp profile root
+	//
 	Annotations map[string]string `protobuf:"bytes,7,rep,name=annotations" json:"annotations,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Optional configurations specific to Linux hosts.
 	Linux            *LinuxPodSandboxConfig `protobuf:"bytes,8,opt,name=linux" json:"linux,omitempty"`
@@ -580,7 +677,7 @@ type PodSandboxConfig struct {
 func (m *PodSandboxConfig) Reset()                    { *m = PodSandboxConfig{} }
 func (m *PodSandboxConfig) String() string            { return proto.CompactTextString(m) }
 func (*PodSandboxConfig) ProtoMessage()               {}
-func (*PodSandboxConfig) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{8} }
+func (*PodSandboxConfig) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{9} }
 
 func (m *PodSandboxConfig) GetMetadata() *PodSandboxMetadata {
 	if m != nil {
@@ -603,9 +700,9 @@ func (m *PodSandboxConfig) GetLogDirectory() string {
 	return ""
 }
 
-func (m *PodSandboxConfig) GetDnsOptions() *DNSOption {
+func (m *PodSandboxConfig) GetDnsConfig() *DNSConfig {
 	if m != nil {
-		return m.DnsOptions
+		return m.DnsConfig
 	}
 	return nil
 }
@@ -639,7 +736,7 @@ func (m *PodSandboxConfig) GetLinux() *LinuxPodSandboxConfig {
 }
 
 type RunPodSandboxRequest struct {
-	// The configuration for creating a PodSandBox.
+	// Configuration for creating a PodSandbox.
 	Config           *PodSandboxConfig `protobuf:"bytes,1,opt,name=config" json:"config,omitempty"`
 	XXX_unrecognized []byte            `json:"-"`
 }
@@ -647,7 +744,7 @@ type RunPodSandboxRequest struct {
 func (m *RunPodSandboxRequest) Reset()                    { *m = RunPodSandboxRequest{} }
 func (m *RunPodSandboxRequest) String() string            { return proto.CompactTextString(m) }
 func (*RunPodSandboxRequest) ProtoMessage()               {}
-func (*RunPodSandboxRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{9} }
+func (*RunPodSandboxRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{10} }
 
 func (m *RunPodSandboxRequest) GetConfig() *PodSandboxConfig {
 	if m != nil {
@@ -657,7 +754,7 @@ func (m *RunPodSandboxRequest) GetConfig() *PodSandboxConfig {
 }
 
 type RunPodSandboxResponse struct {
-	// The id of the PodSandBox
+	// ID of the PodSandbox to run.
 	PodSandboxId     *string `protobuf:"bytes,1,opt,name=pod_sandbox_id,json=podSandboxId" json:"pod_sandbox_id,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
@@ -665,7 +762,7 @@ type RunPodSandboxResponse struct {
 func (m *RunPodSandboxResponse) Reset()                    { *m = RunPodSandboxResponse{} }
 func (m *RunPodSandboxResponse) String() string            { return proto.CompactTextString(m) }
 func (*RunPodSandboxResponse) ProtoMessage()               {}
-func (*RunPodSandboxResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{10} }
+func (*RunPodSandboxResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{11} }
 
 func (m *RunPodSandboxResponse) GetPodSandboxId() string {
 	if m != nil && m.PodSandboxId != nil {
@@ -675,7 +772,7 @@ func (m *RunPodSandboxResponse) GetPodSandboxId() string {
 }
 
 type StopPodSandboxRequest struct {
-	// The id of the PodSandBox
+	// ID of the PodSandbox to stop.
 	PodSandboxId     *string `protobuf:"bytes,1,opt,name=pod_sandbox_id,json=podSandboxId" json:"pod_sandbox_id,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
@@ -683,7 +780,7 @@ type StopPodSandboxRequest struct {
 func (m *StopPodSandboxRequest) Reset()                    { *m = StopPodSandboxRequest{} }
 func (m *StopPodSandboxRequest) String() string            { return proto.CompactTextString(m) }
 func (*StopPodSandboxRequest) ProtoMessage()               {}
-func (*StopPodSandboxRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{11} }
+func (*StopPodSandboxRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{12} }
 
 func (m *StopPodSandboxRequest) GetPodSandboxId() string {
 	if m != nil && m.PodSandboxId != nil {
@@ -699,10 +796,10 @@ type StopPodSandboxResponse struct {
 func (m *StopPodSandboxResponse) Reset()                    { *m = StopPodSandboxResponse{} }
 func (m *StopPodSandboxResponse) String() string            { return proto.CompactTextString(m) }
 func (*StopPodSandboxResponse) ProtoMessage()               {}
-func (*StopPodSandboxResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{12} }
+func (*StopPodSandboxResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{13} }
 
 type RemovePodSandboxRequest struct {
-	// The id of the PodSandBox
+	// ID of the PodSandbox to remove.
 	PodSandboxId     *string `protobuf:"bytes,1,opt,name=pod_sandbox_id,json=podSandboxId" json:"pod_sandbox_id,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
@@ -710,7 +807,7 @@ type RemovePodSandboxRequest struct {
 func (m *RemovePodSandboxRequest) Reset()                    { *m = RemovePodSandboxRequest{} }
 func (m *RemovePodSandboxRequest) String() string            { return proto.CompactTextString(m) }
 func (*RemovePodSandboxRequest) ProtoMessage()               {}
-func (*RemovePodSandboxRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{13} }
+func (*RemovePodSandboxRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{14} }
 
 func (m *RemovePodSandboxRequest) GetPodSandboxId() string {
 	if m != nil && m.PodSandboxId != nil {
@@ -726,10 +823,10 @@ type RemovePodSandboxResponse struct {
 func (m *RemovePodSandboxResponse) Reset()                    { *m = RemovePodSandboxResponse{} }
 func (m *RemovePodSandboxResponse) String() string            { return proto.CompactTextString(m) }
 func (*RemovePodSandboxResponse) ProtoMessage()               {}
-func (*RemovePodSandboxResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{14} }
+func (*RemovePodSandboxResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{15} }
 
 type PodSandboxStatusRequest struct {
-	// The id of the PodSandBox
+	// ID of the PodSandbox for which to retrieve status.
 	PodSandboxId     *string `protobuf:"bytes,1,opt,name=pod_sandbox_id,json=podSandboxId" json:"pod_sandbox_id,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
@@ -737,7 +834,7 @@ type PodSandboxStatusRequest struct {
 func (m *PodSandboxStatusRequest) Reset()                    { *m = PodSandboxStatusRequest{} }
 func (m *PodSandboxStatusRequest) String() string            { return proto.CompactTextString(m) }
 func (*PodSandboxStatusRequest) ProtoMessage()               {}
-func (*PodSandboxStatusRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{15} }
+func (*PodSandboxStatusRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{16} }
 
 func (m *PodSandboxStatusRequest) GetPodSandboxId() string {
 	if m != nil && m.PodSandboxId != nil {
@@ -748,7 +845,7 @@ func (m *PodSandboxStatusRequest) GetPodSandboxId() string {
 
 // PodSandboxNetworkStatus is the status of the network for a PodSandbox.
 type PodSandboxNetworkStatus struct {
-	// The IP address of the PodSandbox
+	// IP address of the PodSandbox.
 	Ip               *string `protobuf:"bytes,1,opt,name=ip" json:"ip,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
@@ -756,7 +853,7 @@ type PodSandboxNetworkStatus struct {
 func (m *PodSandboxNetworkStatus) Reset()                    { *m = PodSandboxNetworkStatus{} }
 func (m *PodSandboxNetworkStatus) String() string            { return proto.CompactTextString(m) }
 func (*PodSandboxNetworkStatus) ProtoMessage()               {}
-func (*PodSandboxNetworkStatus) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{16} }
+func (*PodSandboxNetworkStatus) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{17} }
 
 func (m *PodSandboxNetworkStatus) GetIp() string {
 	if m != nil && m.Ip != nil {
@@ -767,9 +864,9 @@ func (m *PodSandboxNetworkStatus) GetIp() string {
 
 // Namespace contains paths to the namespaces.
 type Namespace struct {
-	// Network is the path to the network namespace.
+	// Path to the network namespace.
 	Network *string `protobuf:"bytes,1,opt,name=network" json:"network,omitempty"`
-	// Options is the namespace options for linux namespaces
+	// Namespace options for Linux namespaces.
 	Options          *NamespaceOption `protobuf:"bytes,2,opt,name=options" json:"options,omitempty"`
 	XXX_unrecognized []byte           `json:"-"`
 }
@@ -777,7 +874,7 @@ type Namespace struct {
 func (m *Namespace) Reset()                    { *m = Namespace{} }
 func (m *Namespace) String() string            { return proto.CompactTextString(m) }
 func (*Namespace) ProtoMessage()               {}
-func (*Namespace) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{17} }
+func (*Namespace) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{18} }
 
 func (m *Namespace) GetNetwork() string {
 	if m != nil && m.Network != nil {
@@ -793,9 +890,9 @@ func (m *Namespace) GetOptions() *NamespaceOption {
 	return nil
 }
 
-// LinuxSandBoxStatus contains status specific to Linux sandboxes.
+// LinuxSandboxStatus contains status specific to Linux sandboxes.
 type LinuxPodSandboxStatus struct {
-	// Namespaces contains paths to the sandbox's namespaces.
+	// Paths to the sandbox's namespaces.
 	Namespaces       *Namespace `protobuf:"bytes,1,opt,name=namespaces" json:"namespaces,omitempty"`
 	XXX_unrecognized []byte     `json:"-"`
 }
@@ -803,7 +900,7 @@ type LinuxPodSandboxStatus struct {
 func (m *LinuxPodSandboxStatus) Reset()                    { *m = LinuxPodSandboxStatus{} }
 func (m *LinuxPodSandboxStatus) String() string            { return proto.CompactTextString(m) }
 func (*LinuxPodSandboxStatus) ProtoMessage()               {}
-func (*LinuxPodSandboxStatus) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{18} }
+func (*LinuxPodSandboxStatus) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{19} }
 
 func (m *LinuxPodSandboxStatus) GetNamespaces() *Namespace {
 	if m != nil {
@@ -819,12 +916,12 @@ type PodSandboxStatus struct {
 	// Metadata of the sandbox.
 	Metadata *PodSandboxMetadata `protobuf:"bytes,2,opt,name=metadata" json:"metadata,omitempty"`
 	// State of the sandbox.
-	State *PodSandBoxState `protobuf:"varint,3,opt,name=state,enum=runtime.PodSandBoxState" json:"state,omitempty"`
-	// Creation timestamp of the sandbox
+	State *PodSandboxState `protobuf:"varint,3,opt,name=state,enum=runtime.PodSandboxState" json:"state,omitempty"`
+	// Creation timestamp of the sandbox in nanoseconds.
 	CreatedAt *int64 `protobuf:"varint,4,opt,name=created_at,json=createdAt" json:"created_at,omitempty"`
 	// Network contains network status if network is handled by the runtime.
 	Network *PodSandboxNetworkStatus `protobuf:"bytes,5,opt,name=network" json:"network,omitempty"`
-	// Linux specific status to a pod sandbox.
+	// Linux-specific status to a pod sandbox.
 	Linux *LinuxPodSandboxStatus `protobuf:"bytes,6,opt,name=linux" json:"linux,omitempty"`
 	// Labels are key value pairs that may be used to scope and select individual resources.
 	Labels map[string]string `protobuf:"bytes,7,rep,name=labels" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
@@ -837,7 +934,7 @@ type PodSandboxStatus struct {
 func (m *PodSandboxStatus) Reset()                    { *m = PodSandboxStatus{} }
 func (m *PodSandboxStatus) String() string            { return proto.CompactTextString(m) }
 func (*PodSandboxStatus) ProtoMessage()               {}
-func (*PodSandboxStatus) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{19} }
+func (*PodSandboxStatus) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{20} }
 
 func (m *PodSandboxStatus) GetId() string {
 	if m != nil && m.Id != nil {
@@ -853,11 +950,11 @@ func (m *PodSandboxStatus) GetMetadata() *PodSandboxMetadata {
 	return nil
 }
 
-func (m *PodSandboxStatus) GetState() PodSandBoxState {
+func (m *PodSandboxStatus) GetState() PodSandboxState {
 	if m != nil && m.State != nil {
 		return *m.State
 	}
-	return PodSandBoxState_READY
+	return PodSandboxState_SANDBOX_READY
 }
 
 func (m *PodSandboxStatus) GetCreatedAt() int64 {
@@ -896,7 +993,7 @@ func (m *PodSandboxStatus) GetAnnotations() map[string]string {
 }
 
 type PodSandboxStatusResponse struct {
-	// The status of the PodSandbox
+	// Status of the PodSandbox.
 	Status           *PodSandboxStatus `protobuf:"bytes,1,opt,name=status" json:"status,omitempty"`
 	XXX_unrecognized []byte            `json:"-"`
 }
@@ -904,7 +1001,7 @@ type PodSandboxStatusResponse struct {
 func (m *PodSandboxStatusResponse) Reset()                    { *m = PodSandboxStatusResponse{} }
 func (m *PodSandboxStatusResponse) String() string            { return proto.CompactTextString(m) }
 func (*PodSandboxStatusResponse) ProtoMessage()               {}
-func (*PodSandboxStatusResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{20} }
+func (*PodSandboxStatusResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{21} }
 
 func (m *PodSandboxStatusResponse) GetStatus() *PodSandboxStatus {
 	if m != nil {
@@ -919,7 +1016,7 @@ type PodSandboxFilter struct {
 	// ID of the sandbox.
 	Id *string `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
 	// State of the sandbox.
-	State *PodSandBoxState `protobuf:"varint,2,opt,name=state,enum=runtime.PodSandBoxState" json:"state,omitempty"`
+	State *PodSandboxState `protobuf:"varint,2,opt,name=state,enum=runtime.PodSandboxState" json:"state,omitempty"`
 	// LabelSelector to select matches.
 	// Only api.MatchLabels is supported for now and the requirements
 	// are ANDed. MatchExpressions is not supported yet.
@@ -930,7 +1027,7 @@ type PodSandboxFilter struct {
 func (m *PodSandboxFilter) Reset()                    { *m = PodSandboxFilter{} }
 func (m *PodSandboxFilter) String() string            { return proto.CompactTextString(m) }
 func (*PodSandboxFilter) ProtoMessage()               {}
-func (*PodSandboxFilter) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{21} }
+func (*PodSandboxFilter) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{22} }
 
 func (m *PodSandboxFilter) GetId() string {
 	if m != nil && m.Id != nil {
@@ -939,11 +1036,11 @@ func (m *PodSandboxFilter) GetId() string {
 	return ""
 }
 
-func (m *PodSandboxFilter) GetState() PodSandBoxState {
+func (m *PodSandboxFilter) GetState() PodSandboxState {
 	if m != nil && m.State != nil {
 		return *m.State
 	}
-	return PodSandBoxState_READY
+	return PodSandboxState_SANDBOX_READY
 }
 
 func (m *PodSandboxFilter) GetLabelSelector() map[string]string {
@@ -962,7 +1059,7 @@ type ListPodSandboxRequest struct {
 func (m *ListPodSandboxRequest) Reset()                    { *m = ListPodSandboxRequest{} }
 func (m *ListPodSandboxRequest) String() string            { return proto.CompactTextString(m) }
 func (*ListPodSandboxRequest) ProtoMessage()               {}
-func (*ListPodSandboxRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{22} }
+func (*ListPodSandboxRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{23} }
 
 func (m *ListPodSandboxRequest) GetFilter() *PodSandboxFilter {
 	if m != nil {
@@ -973,15 +1070,15 @@ func (m *ListPodSandboxRequest) GetFilter() *PodSandboxFilter {
 
 // PodSandbox contains minimal information about a sandbox.
 type PodSandbox struct {
-	// The id of the PodSandbox
+	// ID of the PodSandbox.
 	Id *string `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
-	// Metadata of the sandbox
+	// Metadata of the PodSandbox.
 	Metadata *PodSandboxMetadata `protobuf:"bytes,2,opt,name=metadata" json:"metadata,omitempty"`
-	// The state of the PodSandbox
-	State *PodSandBoxState `protobuf:"varint,3,opt,name=state,enum=runtime.PodSandBoxState" json:"state,omitempty"`
-	// Creation timestamps of the sandbox
+	// State of the PodSandbox.
+	State *PodSandboxState `protobuf:"varint,3,opt,name=state,enum=runtime.PodSandboxState" json:"state,omitempty"`
+	// Creation timestamps of the PodSandbox in nanoseconds.
 	CreatedAt *int64 `protobuf:"varint,4,opt,name=created_at,json=createdAt" json:"created_at,omitempty"`
-	// The labels of the PodSandbox
+	// Labels of the PodSandbox.
 	Labels map[string]string `protobuf:"bytes,5,rep,name=labels" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Annotations is an unstructured key value map that may be set by external
 	// tools to store and retrieve arbitrary metadata.
@@ -992,7 +1089,7 @@ type PodSandbox struct {
 func (m *PodSandbox) Reset()                    { *m = PodSandbox{} }
 func (m *PodSandbox) String() string            { return proto.CompactTextString(m) }
 func (*PodSandbox) ProtoMessage()               {}
-func (*PodSandbox) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{23} }
+func (*PodSandbox) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{24} }
 
 func (m *PodSandbox) GetId() string {
 	if m != nil && m.Id != nil {
@@ -1008,11 +1105,11 @@ func (m *PodSandbox) GetMetadata() *PodSandboxMetadata {
 	return nil
 }
 
-func (m *PodSandbox) GetState() PodSandBoxState {
+func (m *PodSandbox) GetState() PodSandboxState {
 	if m != nil && m.State != nil {
 		return *m.State
 	}
-	return PodSandBoxState_READY
+	return PodSandboxState_SANDBOX_READY
 }
 
 func (m *PodSandbox) GetCreatedAt() int64 {
@@ -1037,7 +1134,7 @@ func (m *PodSandbox) GetAnnotations() map[string]string {
 }
 
 type ListPodSandboxResponse struct {
-	// List of PodSandbox
+	// List of PodSandboxes.
 	Items            []*PodSandbox `protobuf:"bytes,1,rep,name=items" json:"items,omitempty"`
 	XXX_unrecognized []byte        `json:"-"`
 }
@@ -1045,7 +1142,7 @@ type ListPodSandboxResponse struct {
 func (m *ListPodSandboxResponse) Reset()                    { *m = ListPodSandboxResponse{} }
 func (m *ListPodSandboxResponse) String() string            { return proto.CompactTextString(m) }
 func (*ListPodSandboxResponse) ProtoMessage()               {}
-func (*ListPodSandboxResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{24} }
+func (*ListPodSandboxResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{25} }
 
 func (m *ListPodSandboxResponse) GetItems() []*PodSandbox {
 	if m != nil {
@@ -1066,7 +1163,7 @@ type ImageSpec struct {
 func (m *ImageSpec) Reset()                    { *m = ImageSpec{} }
 func (m *ImageSpec) String() string            { return proto.CompactTextString(m) }
 func (*ImageSpec) ProtoMessage()               {}
-func (*ImageSpec) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{25} }
+func (*ImageSpec) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{26} }
 
 func (m *ImageSpec) GetImage() string {
 	if m != nil && m.Image != nil {
@@ -1084,7 +1181,7 @@ type KeyValue struct {
 func (m *KeyValue) Reset()                    { *m = KeyValue{} }
 func (m *KeyValue) String() string            { return proto.CompactTextString(m) }
 func (*KeyValue) ProtoMessage()               {}
-func (*KeyValue) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{26} }
+func (*KeyValue) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{27} }
 
 func (m *KeyValue) GetKey() string {
 	if m != nil && m.Key != nil {
@@ -1105,13 +1202,13 @@ func (m *KeyValue) GetValue() string {
 // TODO: Consider using Resources from opencontainers/runtime-spec/specs-go
 // directly.
 type LinuxContainerResources struct {
-	// CPU CFS (Completely Fair Scheduler) period
+	// CPU CFS (Completely Fair Scheduler) period.
 	CpuPeriod *int64 `protobuf:"varint,1,opt,name=cpu_period,json=cpuPeriod" json:"cpu_period,omitempty"`
-	// CPU CFS (Completely Fair Scheduler) quota
+	// CPU CFS (Completely Fair Scheduler) quota.
 	CpuQuota *int64 `protobuf:"varint,2,opt,name=cpu_quota,json=cpuQuota" json:"cpu_quota,omitempty"`
-	// CPU shares (relative weight vs. other containers)
+	// CPU shares (relative weight vs. other containers).
 	CpuShares *int64 `protobuf:"varint,3,opt,name=cpu_shares,json=cpuShares" json:"cpu_shares,omitempty"`
-	// Memory limit in bytes
+	// Memory limit in bytes.
 	MemoryLimitInBytes *int64 `protobuf:"varint,4,opt,name=memory_limit_in_bytes,json=memoryLimitInBytes" json:"memory_limit_in_bytes,omitempty"`
 	// OOMScoreAdj adjusts the oom-killer score.
 	OomScoreAdj      *int64 `protobuf:"varint,5,opt,name=oom_score_adj,json=oomScoreAdj" json:"oom_score_adj,omitempty"`
@@ -1121,7 +1218,7 @@ type LinuxContainerResources struct {
 func (m *LinuxContainerResources) Reset()                    { *m = LinuxContainerResources{} }
 func (m *LinuxContainerResources) String() string            { return proto.CompactTextString(m) }
 func (*LinuxContainerResources) ProtoMessage()               {}
-func (*LinuxContainerResources) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{27} }
+func (*LinuxContainerResources) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{28} }
 
 func (m *LinuxContainerResources) GetCpuPeriod() int64 {
 	if m != nil && m.CpuPeriod != nil {
@@ -1170,7 +1267,7 @@ type SELinuxOption struct {
 func (m *SELinuxOption) Reset()                    { *m = SELinuxOption{} }
 func (m *SELinuxOption) String() string            { return proto.CompactTextString(m) }
 func (*SELinuxOption) ProtoMessage()               {}
-func (*SELinuxOption) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{28} }
+func (*SELinuxOption) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{29} }
 
 func (m *SELinuxOption) GetUser() string {
 	if m != nil && m.User != nil {
@@ -1212,7 +1309,7 @@ type Capability struct {
 func (m *Capability) Reset()                    { *m = Capability{} }
 func (m *Capability) String() string            { return proto.CompactTextString(m) }
 func (*Capability) ProtoMessage()               {}
-func (*Capability) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{29} }
+func (*Capability) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{30} }
 
 func (m *Capability) GetAddCapabilities() []string {
 	if m != nil {
@@ -1228,24 +1325,99 @@ func (m *Capability) GetDropCapabilities() []string {
 	return nil
 }
 
+// LinuxContainerSecurityContext holds linux security configuration that will be applied to a container.
+type LinuxContainerSecurityContext struct {
+	// Capabilities to add or drop.
+	Capabilities *Capability `protobuf:"bytes,1,opt,name=capabilities" json:"capabilities,omitempty"`
+	// If set, run container in privileged mode.
+	Privileged *bool `protobuf:"varint,2,opt,name=privileged" json:"privileged,omitempty"`
+	// Configurations for the container's namespaces.
+	// Only used if the container uses namespace for isolation.
+	NamespaceOptions *NamespaceOption `protobuf:"bytes,3,opt,name=namespace_options,json=namespaceOptions" json:"namespace_options,omitempty"`
+	// SELinux context to be optionally applied.
+	SelinuxOptions *SELinuxOption `protobuf:"bytes,4,opt,name=selinux_options,json=selinuxOptions" json:"selinux_options,omitempty"`
+	// The user to run the the container process as. Can be either UID or user
+	// name.
+	// Defaults to user specified in image metadata if unspecified.
+	RunAsUser *string `protobuf:"bytes,5,opt,name=run_as_user,json=runAsUser" json:"run_as_user,omitempty"`
+	// If set, the root filesystem of the container is read-only.
+	ReadonlyRootfs *bool `protobuf:"varint,6,opt,name=readonly_rootfs,json=readonlyRootfs" json:"readonly_rootfs,omitempty"`
+	// List of groups applied to the first process run in the container, in
+	// addition to the container's primary GID.
+	SupplementalGroups []int64 `protobuf:"varint,7,rep,name=supplemental_groups,json=supplementalGroups" json:"supplemental_groups,omitempty"`
+	XXX_unrecognized   []byte  `json:"-"`
+}
+
+func (m *LinuxContainerSecurityContext) Reset()         { *m = LinuxContainerSecurityContext{} }
+func (m *LinuxContainerSecurityContext) String() string { return proto.CompactTextString(m) }
+func (*LinuxContainerSecurityContext) ProtoMessage()    {}
+func (*LinuxContainerSecurityContext) Descriptor() ([]byte, []int) {
+	return fileDescriptorApi, []int{31}
+}
+
+func (m *LinuxContainerSecurityContext) GetCapabilities() *Capability {
+	if m != nil {
+		return m.Capabilities
+	}
+	return nil
+}
+
+func (m *LinuxContainerSecurityContext) GetPrivileged() bool {
+	if m != nil && m.Privileged != nil {
+		return *m.Privileged
+	}
+	return false
+}
+
+func (m *LinuxContainerSecurityContext) GetNamespaceOptions() *NamespaceOption {
+	if m != nil {
+		return m.NamespaceOptions
+	}
+	return nil
+}
+
+func (m *LinuxContainerSecurityContext) GetSelinuxOptions() *SELinuxOption {
+	if m != nil {
+		return m.SelinuxOptions
+	}
+	return nil
+}
+
+func (m *LinuxContainerSecurityContext) GetRunAsUser() string {
+	if m != nil && m.RunAsUser != nil {
+		return *m.RunAsUser
+	}
+	return ""
+}
+
+func (m *LinuxContainerSecurityContext) GetReadonlyRootfs() bool {
+	if m != nil && m.ReadonlyRootfs != nil {
+		return *m.ReadonlyRootfs
+	}
+	return false
+}
+
+func (m *LinuxContainerSecurityContext) GetSupplementalGroups() []int64 {
+	if m != nil {
+		return m.SupplementalGroups
+	}
+	return nil
+}
+
 // LinuxContainerConfig contains platform-specific configuration for
 // Linux-based containers.
 type LinuxContainerConfig struct {
 	// Resources specification for the container.
 	Resources *LinuxContainerResources `protobuf:"bytes,1,opt,name=resources" json:"resources,omitempty"`
-	// Capabilities to add or drop.
-	Capabilities *Capability `protobuf:"bytes,2,opt,name=capabilities" json:"capabilities,omitempty"`
-	// Optional SELinux context to be applied.
-	SelinuxOptions *SELinuxOption `protobuf:"bytes,3,opt,name=selinux_options,json=selinuxOptions" json:"selinux_options,omitempty"`
-	// User contains the user for the container process.
-	User             *LinuxUser `protobuf:"bytes,4,opt,name=user" json:"user,omitempty"`
-	XXX_unrecognized []byte     `json:"-"`
+	// LinuxContainerSecurityContext configuration for the container.
+	SecurityContext  *LinuxContainerSecurityContext `protobuf:"bytes,2,opt,name=security_context,json=securityContext" json:"security_context,omitempty"`
+	XXX_unrecognized []byte                         `json:"-"`
 }
 
 func (m *LinuxContainerConfig) Reset()                    { *m = LinuxContainerConfig{} }
 func (m *LinuxContainerConfig) String() string            { return proto.CompactTextString(m) }
 func (*LinuxContainerConfig) ProtoMessage()               {}
-func (*LinuxContainerConfig) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{30} }
+func (*LinuxContainerConfig) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{32} }
 
 func (m *LinuxContainerConfig) GetResources() *LinuxContainerResources {
 	if m != nil {
@@ -1254,59 +1426,9 @@ func (m *LinuxContainerConfig) GetResources() *LinuxContainerResources {
 	return nil
 }
 
-func (m *LinuxContainerConfig) GetCapabilities() *Capability {
+func (m *LinuxContainerConfig) GetSecurityContext() *LinuxContainerSecurityContext {
 	if m != nil {
-		return m.Capabilities
-	}
-	return nil
-}
-
-func (m *LinuxContainerConfig) GetSelinuxOptions() *SELinuxOption {
-	if m != nil {
-		return m.SelinuxOptions
-	}
-	return nil
-}
-
-func (m *LinuxContainerConfig) GetUser() *LinuxUser {
-	if m != nil {
-		return m.User
-	}
-	return nil
-}
-
-type LinuxUser struct {
-	// uid specifies the user ID the container process has.
-	Uid *int64 `protobuf:"varint,1,opt,name=uid" json:"uid,omitempty"`
-	// gid specifies the group ID the container process has.
-	Gid *int64 `protobuf:"varint,2,opt,name=gid" json:"gid,omitempty"`
-	// additional_gids specifies additional GIDs the container process has.
-	AdditionalGids   []int64 `protobuf:"varint,3,rep,name=additional_gids,json=additionalGids" json:"additional_gids,omitempty"`
-	XXX_unrecognized []byte  `json:"-"`
-}
-
-func (m *LinuxUser) Reset()                    { *m = LinuxUser{} }
-func (m *LinuxUser) String() string            { return proto.CompactTextString(m) }
-func (*LinuxUser) ProtoMessage()               {}
-func (*LinuxUser) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{31} }
-
-func (m *LinuxUser) GetUid() int64 {
-	if m != nil && m.Uid != nil {
-		return *m.Uid
-	}
-	return 0
-}
-
-func (m *LinuxUser) GetGid() int64 {
-	if m != nil && m.Gid != nil {
-		return *m.Gid
-	}
-	return 0
-}
-
-func (m *LinuxUser) GetAdditionalGids() []int64 {
-	if m != nil {
-		return m.AdditionalGids
+		return m.SecurityContext
 	}
 	return nil
 }
@@ -1317,9 +1439,9 @@ func (m *LinuxUser) GetAdditionalGids() []int64 {
 // container name based on the metadata. Note that (name, attempt) is unique
 // within a sandbox for the entire lifetime of the sandbox.
 type ContainerMetadata struct {
-	// The name of the container. Same as the container name in the PodSpec.
+	// Name of the container. Same as the container name in the PodSpec.
 	Name *string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
-	// The attempt number of creating the container.
+	// Attempt number of creating the container.
 	Attempt          *uint32 `protobuf:"varint,2,opt,name=attempt" json:"attempt,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
@@ -1327,7 +1449,7 @@ type ContainerMetadata struct {
 func (m *ContainerMetadata) Reset()                    { *m = ContainerMetadata{} }
 func (m *ContainerMetadata) String() string            { return proto.CompactTextString(m) }
 func (*ContainerMetadata) ProtoMessage()               {}
-func (*ContainerMetadata) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{32} }
+func (*ContainerMetadata) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{33} }
 
 func (m *ContainerMetadata) GetName() string {
 	if m != nil && m.Name != nil {
@@ -1343,11 +1465,51 @@ func (m *ContainerMetadata) GetAttempt() uint32 {
 	return 0
 }
 
+// Device specifies a host device to mount into a container.
+type Device struct {
+	// Path of the device within the container.
+	ContainerPath *string `protobuf:"bytes,1,opt,name=container_path,json=containerPath" json:"container_path,omitempty"`
+	// Path of the device on the host.
+	HostPath *string `protobuf:"bytes,2,opt,name=host_path,json=hostPath" json:"host_path,omitempty"`
+	// Cgroups permissions of the device, candidates are one or more of
+	// * r - allows container to read from the specified device.
+	// * w - allows container to write to the specified device.
+	// * m - allows container to create device files that do not yet exist.
+	Permissions      *string `protobuf:"bytes,3,opt,name=permissions" json:"permissions,omitempty"`
+	XXX_unrecognized []byte  `json:"-"`
+}
+
+func (m *Device) Reset()                    { *m = Device{} }
+func (m *Device) String() string            { return proto.CompactTextString(m) }
+func (*Device) ProtoMessage()               {}
+func (*Device) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{34} }
+
+func (m *Device) GetContainerPath() string {
+	if m != nil && m.ContainerPath != nil {
+		return *m.ContainerPath
+	}
+	return ""
+}
+
+func (m *Device) GetHostPath() string {
+	if m != nil && m.HostPath != nil {
+		return *m.HostPath
+	}
+	return ""
+}
+
+func (m *Device) GetPermissions() string {
+	if m != nil && m.Permissions != nil {
+		return *m.Permissions
+	}
+	return ""
+}
+
 // ContainerConfig holds all the required and optional fields for creating a
 // container.
 type ContainerConfig struct {
-	// The metadata of the container. This information will uniquely identify
-	// the container, and the runtime should leverage this to ensure correct
+	// Metadata of the container. This information will uniquely identify the
+	// container, and the runtime should leverage this to ensure correct
 	// operation. The runtime may also use this information to improve UX, such
 	// as by constructing a readable name.
 	Metadata *ContainerMetadata `protobuf:"bytes,1,opt,name=metadata" json:"metadata,omitempty"`
@@ -1359,25 +1521,22 @@ type ContainerConfig struct {
 	Args []string `protobuf:"bytes,4,rep,name=args" json:"args,omitempty"`
 	// Current working directory of the command.
 	WorkingDir *string `protobuf:"bytes,5,opt,name=working_dir,json=workingDir" json:"working_dir,omitempty"`
-	// List of environment variable to set in the container
+	// List of environment variable to set in the container.
 	Envs []*KeyValue `protobuf:"bytes,6,rep,name=envs" json:"envs,omitempty"`
-	// Mounts specifies mounts for the container
+	// Mounts for the container.
 	Mounts []*Mount `protobuf:"bytes,7,rep,name=mounts" json:"mounts,omitempty"`
-	// Labels are key value pairs that may be used to scope and select individual resources.
+	// Devices for the container.
+	Devices []*Device `protobuf:"bytes,8,rep,name=devices" json:"devices,omitempty"`
+	// Key-value pairs that may be used to scope and select individual resources.
 	// Label keys are of the form:
 	//     label-key ::= prefixed-name | name
 	//     prefixed-name ::= prefix '/' name
 	//     prefix ::= DNS_SUBDOMAIN
 	//     name ::= DNS_LABEL
-	Labels map[string]string `protobuf:"bytes,8,rep,name=labels" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Labels map[string]string `protobuf:"bytes,9,rep,name=labels" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Annotations is an unstructured key value map that may be set by external
 	// tools to store and retrieve arbitrary metadata.
-	Annotations map[string]string `protobuf:"bytes,9,rep,name=annotations" json:"annotations,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// If set, run container in privileged mode.
-	// Processes in privileged containers are essentially equivalent to root on the host.
-	Privileged *bool `protobuf:"varint,10,opt,name=privileged" json:"privileged,omitempty"`
-	// If set, the root filesystem of the container is read-only.
-	ReadonlyRootfs *bool `protobuf:"varint,11,opt,name=readonly_rootfs,json=readonlyRootfs" json:"readonly_rootfs,omitempty"`
+	Annotations map[string]string `protobuf:"bytes,10,rep,name=annotations" json:"annotations,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Path relative to PodSandboxConfig.LogDirectory for container to store
 	// the log (STDOUT and STDERR) on the host.
 	// E.g.,
@@ -1388,23 +1547,23 @@ type ContainerConfig struct {
 	// container logs are under active discussion in
 	// https://issues.k8s.io/24677. There *may* be future change of direction
 	// for logging as the discussion carries on.
-	LogPath *string `protobuf:"bytes,12,opt,name=log_path,json=logPath" json:"log_path,omitempty"`
+	LogPath *string `protobuf:"bytes,11,opt,name=log_path,json=logPath" json:"log_path,omitempty"`
 	// Variables for interactive containers, these have very specialized
 	// use-cases (e.g. debugging).
 	// TODO: Determine if we need to continue supporting these fields that are
 	// part of Kubernetes's Container Spec.
-	Stdin     *bool `protobuf:"varint,13,opt,name=stdin" json:"stdin,omitempty"`
-	StdinOnce *bool `protobuf:"varint,14,opt,name=stdin_once,json=stdinOnce" json:"stdin_once,omitempty"`
-	Tty       *bool `protobuf:"varint,15,opt,name=tty" json:"tty,omitempty"`
-	// Linux contains configuration specific to Linux containers.
-	Linux            *LinuxContainerConfig `protobuf:"bytes,16,opt,name=linux" json:"linux,omitempty"`
+	Stdin     *bool `protobuf:"varint,12,opt,name=stdin" json:"stdin,omitempty"`
+	StdinOnce *bool `protobuf:"varint,13,opt,name=stdin_once,json=stdinOnce" json:"stdin_once,omitempty"`
+	Tty       *bool `protobuf:"varint,14,opt,name=tty" json:"tty,omitempty"`
+	// Configuration specific to Linux containers.
+	Linux            *LinuxContainerConfig `protobuf:"bytes,15,opt,name=linux" json:"linux,omitempty"`
 	XXX_unrecognized []byte                `json:"-"`
 }
 
 func (m *ContainerConfig) Reset()                    { *m = ContainerConfig{} }
 func (m *ContainerConfig) String() string            { return proto.CompactTextString(m) }
 func (*ContainerConfig) ProtoMessage()               {}
-func (*ContainerConfig) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{33} }
+func (*ContainerConfig) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{35} }
 
 func (m *ContainerConfig) GetMetadata() *ContainerMetadata {
 	if m != nil {
@@ -1455,6 +1614,13 @@ func (m *ContainerConfig) GetMounts() []*Mount {
 	return nil
 }
 
+func (m *ContainerConfig) GetDevices() []*Device {
+	if m != nil {
+		return m.Devices
+	}
+	return nil
+}
+
 func (m *ContainerConfig) GetLabels() map[string]string {
 	if m != nil {
 		return m.Labels
@@ -1467,20 +1633,6 @@ func (m *ContainerConfig) GetAnnotations() map[string]string {
 		return m.Annotations
 	}
 	return nil
-}
-
-func (m *ContainerConfig) GetPrivileged() bool {
-	if m != nil && m.Privileged != nil {
-		return *m.Privileged
-	}
-	return false
-}
-
-func (m *ContainerConfig) GetReadonlyRootfs() bool {
-	if m != nil && m.ReadonlyRootfs != nil {
-		return *m.ReadonlyRootfs
-	}
-	return false
 }
 
 func (m *ContainerConfig) GetLogPath() string {
@@ -1519,11 +1671,14 @@ func (m *ContainerConfig) GetLinux() *LinuxContainerConfig {
 }
 
 type CreateContainerRequest struct {
-	// The id of the PodSandbox
+	// ID of the PodSandbox in which the container should be created.
 	PodSandboxId *string `protobuf:"bytes,1,opt,name=pod_sandbox_id,json=podSandboxId" json:"pod_sandbox_id,omitempty"`
-	// The config of the container
+	// Config of the container.
 	Config *ContainerConfig `protobuf:"bytes,2,opt,name=config" json:"config,omitempty"`
-	// The config of the PodSandbox
+	// Config of the PodSandbox. This is the same config that was passed
+	// to RunPodSandboxRequest to create the PodSandbox. It is passed again
+	// here just for easy reference. The PodSandboxConfig is immutable and
+	// remains the same throughout the lifetime of the pod.
 	SandboxConfig    *PodSandboxConfig `protobuf:"bytes,3,opt,name=sandbox_config,json=sandboxConfig" json:"sandbox_config,omitempty"`
 	XXX_unrecognized []byte            `json:"-"`
 }
@@ -1531,7 +1686,7 @@ type CreateContainerRequest struct {
 func (m *CreateContainerRequest) Reset()                    { *m = CreateContainerRequest{} }
 func (m *CreateContainerRequest) String() string            { return proto.CompactTextString(m) }
 func (*CreateContainerRequest) ProtoMessage()               {}
-func (*CreateContainerRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{34} }
+func (*CreateContainerRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{36} }
 
 func (m *CreateContainerRequest) GetPodSandboxId() string {
 	if m != nil && m.PodSandboxId != nil {
@@ -1555,7 +1710,7 @@ func (m *CreateContainerRequest) GetSandboxConfig() *PodSandboxConfig {
 }
 
 type CreateContainerResponse struct {
-	// The id of the created container
+	// ID of the created container.
 	ContainerId      *string `protobuf:"bytes,1,opt,name=container_id,json=containerId" json:"container_id,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
@@ -1563,7 +1718,7 @@ type CreateContainerResponse struct {
 func (m *CreateContainerResponse) Reset()                    { *m = CreateContainerResponse{} }
 func (m *CreateContainerResponse) String() string            { return proto.CompactTextString(m) }
 func (*CreateContainerResponse) ProtoMessage()               {}
-func (*CreateContainerResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{35} }
+func (*CreateContainerResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{37} }
 
 func (m *CreateContainerResponse) GetContainerId() string {
 	if m != nil && m.ContainerId != nil {
@@ -1573,7 +1728,7 @@ func (m *CreateContainerResponse) GetContainerId() string {
 }
 
 type StartContainerRequest struct {
-	// The id of the container
+	// ID of the container to start.
 	ContainerId      *string `protobuf:"bytes,1,opt,name=container_id,json=containerId" json:"container_id,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
@@ -1581,7 +1736,7 @@ type StartContainerRequest struct {
 func (m *StartContainerRequest) Reset()                    { *m = StartContainerRequest{} }
 func (m *StartContainerRequest) String() string            { return proto.CompactTextString(m) }
 func (*StartContainerRequest) ProtoMessage()               {}
-func (*StartContainerRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{36} }
+func (*StartContainerRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{38} }
 
 func (m *StartContainerRequest) GetContainerId() string {
 	if m != nil && m.ContainerId != nil {
@@ -1597,12 +1752,12 @@ type StartContainerResponse struct {
 func (m *StartContainerResponse) Reset()                    { *m = StartContainerResponse{} }
 func (m *StartContainerResponse) String() string            { return proto.CompactTextString(m) }
 func (*StartContainerResponse) ProtoMessage()               {}
-func (*StartContainerResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{37} }
+func (*StartContainerResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{39} }
 
 type StopContainerRequest struct {
-	// The id of the container
+	// ID of the container to stop.
 	ContainerId *string `protobuf:"bytes,1,opt,name=container_id,json=containerId" json:"container_id,omitempty"`
-	// Timeout in seconds to stop the container
+	// Timeout, in seconds, to stop the container.
 	Timeout          *int64 `protobuf:"varint,2,opt,name=timeout" json:"timeout,omitempty"`
 	XXX_unrecognized []byte `json:"-"`
 }
@@ -1610,7 +1765,7 @@ type StopContainerRequest struct {
 func (m *StopContainerRequest) Reset()                    { *m = StopContainerRequest{} }
 func (m *StopContainerRequest) String() string            { return proto.CompactTextString(m) }
 func (*StopContainerRequest) ProtoMessage()               {}
-func (*StopContainerRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{38} }
+func (*StopContainerRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{40} }
 
 func (m *StopContainerRequest) GetContainerId() string {
 	if m != nil && m.ContainerId != nil {
@@ -1633,10 +1788,10 @@ type StopContainerResponse struct {
 func (m *StopContainerResponse) Reset()                    { *m = StopContainerResponse{} }
 func (m *StopContainerResponse) String() string            { return proto.CompactTextString(m) }
 func (*StopContainerResponse) ProtoMessage()               {}
-func (*StopContainerResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{39} }
+func (*StopContainerResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{41} }
 
 type RemoveContainerRequest struct {
-	// The id of the container
+	// ID of the container to remove.
 	ContainerId      *string `protobuf:"bytes,1,opt,name=container_id,json=containerId" json:"container_id,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
@@ -1644,7 +1799,7 @@ type RemoveContainerRequest struct {
 func (m *RemoveContainerRequest) Reset()                    { *m = RemoveContainerRequest{} }
 func (m *RemoveContainerRequest) String() string            { return proto.CompactTextString(m) }
 func (*RemoveContainerRequest) ProtoMessage()               {}
-func (*RemoveContainerRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{40} }
+func (*RemoveContainerRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{42} }
 
 func (m *RemoveContainerRequest) GetContainerId() string {
 	if m != nil && m.ContainerId != nil {
@@ -1660,7 +1815,7 @@ type RemoveContainerResponse struct {
 func (m *RemoveContainerResponse) Reset()                    { *m = RemoveContainerResponse{} }
 func (m *RemoveContainerResponse) String() string            { return proto.CompactTextString(m) }
 func (*RemoveContainerResponse) ProtoMessage()               {}
-func (*RemoveContainerResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{41} }
+func (*RemoveContainerResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{43} }
 
 // ContainerFilter is used to filter containers.
 // All those fields are combined with 'AND'
@@ -1669,7 +1824,7 @@ type ContainerFilter struct {
 	Id *string `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
 	// State of the container.
 	State *ContainerState `protobuf:"varint,2,opt,name=state,enum=runtime.ContainerState" json:"state,omitempty"`
-	// The id of the pod sandbox
+	// ID of the PodSandbox.
 	PodSandboxId *string `protobuf:"bytes,3,opt,name=pod_sandbox_id,json=podSandboxId" json:"pod_sandbox_id,omitempty"`
 	// LabelSelector to select matches.
 	// Only api.MatchLabels is supported for now and the requirements
@@ -1681,7 +1836,7 @@ type ContainerFilter struct {
 func (m *ContainerFilter) Reset()                    { *m = ContainerFilter{} }
 func (m *ContainerFilter) String() string            { return proto.CompactTextString(m) }
 func (*ContainerFilter) ProtoMessage()               {}
-func (*ContainerFilter) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{42} }
+func (*ContainerFilter) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{44} }
 
 func (m *ContainerFilter) GetId() string {
 	if m != nil && m.Id != nil {
@@ -1694,7 +1849,7 @@ func (m *ContainerFilter) GetState() ContainerState {
 	if m != nil && m.State != nil {
 		return *m.State
 	}
-	return ContainerState_CREATED
+	return ContainerState_CONTAINER_CREATED
 }
 
 func (m *ContainerFilter) GetPodSandboxId() string {
@@ -1719,7 +1874,7 @@ type ListContainersRequest struct {
 func (m *ListContainersRequest) Reset()                    { *m = ListContainersRequest{} }
 func (m *ListContainersRequest) String() string            { return proto.CompactTextString(m) }
 func (*ListContainersRequest) ProtoMessage()               {}
-func (*ListContainersRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{43} }
+func (*ListContainersRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{45} }
 
 func (m *ListContainersRequest) GetFilter() *ContainerFilter {
 	if m != nil {
@@ -1731,23 +1886,23 @@ func (m *ListContainersRequest) GetFilter() *ContainerFilter {
 // Container provides the runtime information for a container, such as ID, hash,
 // state of the container.
 type Container struct {
-	// The ID of the container, used by the container runtime to identify
+	// ID of the container, used by the container runtime to identify
 	// a container.
 	Id *string `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
-	// The id of the sandbox which this container belongs to.
+	// ID of the sandbox to which this container belongs.
 	PodSandboxId *string `protobuf:"bytes,2,opt,name=pod_sandbox_id,json=podSandboxId" json:"pod_sandbox_id,omitempty"`
-	// The metadata of the container.
+	// Metadata of the container.
 	Metadata *ContainerMetadata `protobuf:"bytes,3,opt,name=metadata" json:"metadata,omitempty"`
-	// The spec of the image
+	// Spec of the image.
 	Image *ImageSpec `protobuf:"bytes,4,opt,name=image" json:"image,omitempty"`
 	// Reference to the image in use. For most runtimes, this should be an
 	// image ID.
 	ImageRef *string `protobuf:"bytes,5,opt,name=image_ref,json=imageRef" json:"image_ref,omitempty"`
-	// State is the state of the container.
+	// State of the container.
 	State *ContainerState `protobuf:"varint,6,opt,name=state,enum=runtime.ContainerState" json:"state,omitempty"`
-	// Creation time of the container.
+	// Creation time of the container in nanoseconds.
 	CreatedAt *int64 `protobuf:"varint,7,opt,name=created_at,json=createdAt" json:"created_at,omitempty"`
-	// Labels are key value pairs that may be used to scope and select individual resources.
+	// Key-value pairs that may be used to scope and select individual resources.
 	Labels map[string]string `protobuf:"bytes,8,rep,name=labels" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Annotations is an unstructured key value map that may be set by external
 	// tools to store and retrieve arbitrary metadata.
@@ -1758,7 +1913,7 @@ type Container struct {
 func (m *Container) Reset()                    { *m = Container{} }
 func (m *Container) String() string            { return proto.CompactTextString(m) }
 func (*Container) ProtoMessage()               {}
-func (*Container) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{44} }
+func (*Container) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{46} }
 
 func (m *Container) GetId() string {
 	if m != nil && m.Id != nil {
@@ -1799,7 +1954,7 @@ func (m *Container) GetState() ContainerState {
 	if m != nil && m.State != nil {
 		return *m.State
 	}
-	return ContainerState_CREATED
+	return ContainerState_CONTAINER_CREATED
 }
 
 func (m *Container) GetCreatedAt() int64 {
@@ -1824,7 +1979,7 @@ func (m *Container) GetAnnotations() map[string]string {
 }
 
 type ListContainersResponse struct {
-	// List of containers
+	// List of containers.
 	Containers       []*Container `protobuf:"bytes,1,rep,name=containers" json:"containers,omitempty"`
 	XXX_unrecognized []byte       `json:"-"`
 }
@@ -1832,7 +1987,7 @@ type ListContainersResponse struct {
 func (m *ListContainersResponse) Reset()                    { *m = ListContainersResponse{} }
 func (m *ListContainersResponse) String() string            { return proto.CompactTextString(m) }
 func (*ListContainersResponse) ProtoMessage()               {}
-func (*ListContainersResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{45} }
+func (*ListContainersResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{47} }
 
 func (m *ListContainersResponse) GetContainers() []*Container {
 	if m != nil {
@@ -1842,7 +1997,7 @@ func (m *ListContainersResponse) GetContainers() []*Container {
 }
 
 type ContainerStatusRequest struct {
-	// The id of the container
+	// ID of the container for which to retrieve status.
 	ContainerId      *string `protobuf:"bytes,1,opt,name=container_id,json=containerId" json:"container_id,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
@@ -1850,7 +2005,7 @@ type ContainerStatusRequest struct {
 func (m *ContainerStatusRequest) Reset()                    { *m = ContainerStatusRequest{} }
 func (m *ContainerStatusRequest) String() string            { return proto.CompactTextString(m) }
 func (*ContainerStatusRequest) ProtoMessage()               {}
-func (*ContainerStatusRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{46} }
+func (*ContainerStatusRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{48} }
 
 func (m *ContainerStatusRequest) GetContainerId() string {
 	if m != nil && m.ContainerId != nil {
@@ -1867,29 +2022,29 @@ type ContainerStatus struct {
 	Metadata *ContainerMetadata `protobuf:"bytes,2,opt,name=metadata" json:"metadata,omitempty"`
 	// Status of the container.
 	State *ContainerState `protobuf:"varint,3,opt,name=state,enum=runtime.ContainerState" json:"state,omitempty"`
-	// Creation time of the container.
+	// Creation time of the container in nanoseconds.
 	CreatedAt *int64 `protobuf:"varint,4,opt,name=created_at,json=createdAt" json:"created_at,omitempty"`
-	// Start time of the container.
+	// Start time of the container in nanoseconds.
 	StartedAt *int64 `protobuf:"varint,5,opt,name=started_at,json=startedAt" json:"started_at,omitempty"`
-	// Finish time of the container.
+	// Finish time of the container in nanoseconds.
 	FinishedAt *int64 `protobuf:"varint,6,opt,name=finished_at,json=finishedAt" json:"finished_at,omitempty"`
 	// Exit code of the container.
 	ExitCode *int32 `protobuf:"varint,7,opt,name=exit_code,json=exitCode" json:"exit_code,omitempty"`
-	// The spec of the image
+	// Spec of the image.
 	Image *ImageSpec `protobuf:"bytes,8,opt,name=image" json:"image,omitempty"`
 	// Reference to the image in use. For most runtimes, this should be an
 	// image ID
 	ImageRef *string `protobuf:"bytes,9,opt,name=image_ref,json=imageRef" json:"image_ref,omitempty"`
-	// A brief CamelCase string explains why container is in such a status.
+	// Brief CamelCase string explaining why container is in its current state.
 	Reason *string `protobuf:"bytes,10,opt,name=reason" json:"reason,omitempty"`
-	// A human-readable message indication details about why container is in
-	// this state.
+	// Human-readable message indicating details about why container is in its
+	// current state.
 	Message *string `protobuf:"bytes,11,opt,name=message" json:"message,omitempty"`
-	// Labels are key value pairs that may be used to scope and select individual resources.
+	// Key-value pairs that may be used to scope and select individual resources.
 	Labels map[string]string `protobuf:"bytes,12,rep,name=labels" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Annotations is an unstructured key value map.
 	Annotations map[string]string `protobuf:"bytes,13,rep,name=annotations" json:"annotations,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Mounts specifies mounts for the container
+	// Mounts for the container.
 	Mounts           []*Mount `protobuf:"bytes,14,rep,name=mounts" json:"mounts,omitempty"`
 	XXX_unrecognized []byte   `json:"-"`
 }
@@ -1897,7 +2052,7 @@ type ContainerStatus struct {
 func (m *ContainerStatus) Reset()                    { *m = ContainerStatus{} }
 func (m *ContainerStatus) String() string            { return proto.CompactTextString(m) }
 func (*ContainerStatus) ProtoMessage()               {}
-func (*ContainerStatus) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{47} }
+func (*ContainerStatus) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{49} }
 
 func (m *ContainerStatus) GetId() string {
 	if m != nil && m.Id != nil {
@@ -1917,7 +2072,7 @@ func (m *ContainerStatus) GetState() ContainerState {
 	if m != nil && m.State != nil {
 		return *m.State
 	}
-	return ContainerState_CREATED
+	return ContainerState_CONTAINER_CREATED
 }
 
 func (m *ContainerStatus) GetCreatedAt() int64 {
@@ -1998,7 +2153,7 @@ func (m *ContainerStatus) GetMounts() []*Mount {
 }
 
 type ContainerStatusResponse struct {
-	// The status of the container
+	// Status of the container.
 	Status           *ContainerStatus `protobuf:"bytes,1,opt,name=status" json:"status,omitempty"`
 	XXX_unrecognized []byte           `json:"-"`
 }
@@ -2006,7 +2161,7 @@ type ContainerStatusResponse struct {
 func (m *ContainerStatusResponse) Reset()                    { *m = ContainerStatusResponse{} }
 func (m *ContainerStatusResponse) String() string            { return proto.CompactTextString(m) }
 func (*ContainerStatusResponse) ProtoMessage()               {}
-func (*ContainerStatusResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{48} }
+func (*ContainerStatusResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{50} }
 
 func (m *ContainerStatusResponse) GetStatus() *ContainerStatus {
 	if m != nil {
@@ -2015,22 +2170,94 @@ func (m *ContainerStatusResponse) GetStatus() *ContainerStatus {
 	return nil
 }
 
-type ExecRequest struct {
-	// The id of the container
+type ExecSyncRequest struct {
+	// ID of the container.
 	ContainerId *string `protobuf:"bytes,1,opt,name=container_id,json=containerId" json:"container_id,omitempty"`
-	// The cmd to execute
+	// Command to execute.
 	Cmd []string `protobuf:"bytes,2,rep,name=cmd" json:"cmd,omitempty"`
-	// Whether use tty
+	// Timeout in seconds to stop the command. Default: run forever.
+	Timeout          *int64 `protobuf:"varint,3,opt,name=timeout" json:"timeout,omitempty"`
+	XXX_unrecognized []byte `json:"-"`
+}
+
+func (m *ExecSyncRequest) Reset()                    { *m = ExecSyncRequest{} }
+func (m *ExecSyncRequest) String() string            { return proto.CompactTextString(m) }
+func (*ExecSyncRequest) ProtoMessage()               {}
+func (*ExecSyncRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{51} }
+
+func (m *ExecSyncRequest) GetContainerId() string {
+	if m != nil && m.ContainerId != nil {
+		return *m.ContainerId
+	}
+	return ""
+}
+
+func (m *ExecSyncRequest) GetCmd() []string {
+	if m != nil {
+		return m.Cmd
+	}
+	return nil
+}
+
+func (m *ExecSyncRequest) GetTimeout() int64 {
+	if m != nil && m.Timeout != nil {
+		return *m.Timeout
+	}
+	return 0
+}
+
+type ExecSyncResponse struct {
+	// Captured command stdout output.
+	Stdout []byte `protobuf:"bytes,1,opt,name=stdout" json:"stdout,omitempty"`
+	// Captured command stderr output.
+	Stderr []byte `protobuf:"bytes,2,opt,name=stderr" json:"stderr,omitempty"`
+	// Exit code the command finished with.
+	ExitCode         *int32 `protobuf:"varint,3,opt,name=exit_code,json=exitCode" json:"exit_code,omitempty"`
+	XXX_unrecognized []byte `json:"-"`
+}
+
+func (m *ExecSyncResponse) Reset()                    { *m = ExecSyncResponse{} }
+func (m *ExecSyncResponse) String() string            { return proto.CompactTextString(m) }
+func (*ExecSyncResponse) ProtoMessage()               {}
+func (*ExecSyncResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{52} }
+
+func (m *ExecSyncResponse) GetStdout() []byte {
+	if m != nil {
+		return m.Stdout
+	}
+	return nil
+}
+
+func (m *ExecSyncResponse) GetStderr() []byte {
+	if m != nil {
+		return m.Stderr
+	}
+	return nil
+}
+
+func (m *ExecSyncResponse) GetExitCode() int32 {
+	if m != nil && m.ExitCode != nil {
+		return *m.ExitCode
+	}
+	return 0
+}
+
+type ExecRequest struct {
+	// ID of the container in which to execute the command.
+	ContainerId *string `protobuf:"bytes,1,opt,name=container_id,json=containerId" json:"container_id,omitempty"`
+	// Command to execute.
+	Cmd []string `protobuf:"bytes,2,rep,name=cmd" json:"cmd,omitempty"`
+	// Whether use tty.
 	Tty *bool `protobuf:"varint,3,opt,name=tty" json:"tty,omitempty"`
-	// Streaming stdin
-	Stdin            []byte `protobuf:"bytes,4,opt,name=stdin" json:"stdin,omitempty"`
+	// Whether to stream stdin.
+	Stdin            *bool  `protobuf:"varint,4,opt,name=stdin" json:"stdin,omitempty"`
 	XXX_unrecognized []byte `json:"-"`
 }
 
 func (m *ExecRequest) Reset()                    { *m = ExecRequest{} }
 func (m *ExecRequest) String() string            { return proto.CompactTextString(m) }
 func (*ExecRequest) ProtoMessage()               {}
-func (*ExecRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{49} }
+func (*ExecRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{53} }
 
 func (m *ExecRequest) GetContainerId() string {
 	if m != nil && m.ContainerId != nil {
@@ -2053,42 +2280,123 @@ func (m *ExecRequest) GetTty() bool {
 	return false
 }
 
-func (m *ExecRequest) GetStdin() []byte {
-	if m != nil {
-		return m.Stdin
+func (m *ExecRequest) GetStdin() bool {
+	if m != nil && m.Stdin != nil {
+		return *m.Stdin
 	}
-	return nil
+	return false
 }
 
 type ExecResponse struct {
-	// Streaming stdout
-	Stdout []byte `protobuf:"bytes,1,opt,name=stdout" json:"stdout,omitempty"`
-	// Streaming stderr
-	Stderr           []byte `protobuf:"bytes,2,opt,name=stderr" json:"stderr,omitempty"`
-	XXX_unrecognized []byte `json:"-"`
+	// Fully qualified URL of the exec streaming server.
+	Url              *string `protobuf:"bytes,1,opt,name=url" json:"url,omitempty"`
+	XXX_unrecognized []byte  `json:"-"`
 }
 
 func (m *ExecResponse) Reset()                    { *m = ExecResponse{} }
 func (m *ExecResponse) String() string            { return proto.CompactTextString(m) }
 func (*ExecResponse) ProtoMessage()               {}
-func (*ExecResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{50} }
+func (*ExecResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{54} }
 
-func (m *ExecResponse) GetStdout() []byte {
+func (m *ExecResponse) GetUrl() string {
+	if m != nil && m.Url != nil {
+		return *m.Url
+	}
+	return ""
+}
+
+type AttachRequest struct {
+	// ID of the container to which to attach.
+	ContainerId *string `protobuf:"bytes,1,opt,name=container_id,json=containerId" json:"container_id,omitempty"`
+	// Whether to stream stdin.
+	Stdin            *bool  `protobuf:"varint,2,opt,name=stdin" json:"stdin,omitempty"`
+	XXX_unrecognized []byte `json:"-"`
+}
+
+func (m *AttachRequest) Reset()                    { *m = AttachRequest{} }
+func (m *AttachRequest) String() string            { return proto.CompactTextString(m) }
+func (*AttachRequest) ProtoMessage()               {}
+func (*AttachRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{55} }
+
+func (m *AttachRequest) GetContainerId() string {
+	if m != nil && m.ContainerId != nil {
+		return *m.ContainerId
+	}
+	return ""
+}
+
+func (m *AttachRequest) GetStdin() bool {
+	if m != nil && m.Stdin != nil {
+		return *m.Stdin
+	}
+	return false
+}
+
+type AttachResponse struct {
+	// Fully qualified URL of the attach streaming server.
+	Url              *string `protobuf:"bytes,1,opt,name=url" json:"url,omitempty"`
+	XXX_unrecognized []byte  `json:"-"`
+}
+
+func (m *AttachResponse) Reset()                    { *m = AttachResponse{} }
+func (m *AttachResponse) String() string            { return proto.CompactTextString(m) }
+func (*AttachResponse) ProtoMessage()               {}
+func (*AttachResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{56} }
+
+func (m *AttachResponse) GetUrl() string {
+	if m != nil && m.Url != nil {
+		return *m.Url
+	}
+	return ""
+}
+
+type PortForwardRequest struct {
+	// ID of the container to which to forward the port.
+	PodSandboxId *string `protobuf:"bytes,1,opt,name=pod_sandbox_id,json=podSandboxId" json:"pod_sandbox_id,omitempty"`
+	// Port to forward.
+	Port             []int32 `protobuf:"varint,2,rep,name=port" json:"port,omitempty"`
+	XXX_unrecognized []byte  `json:"-"`
+}
+
+func (m *PortForwardRequest) Reset()                    { *m = PortForwardRequest{} }
+func (m *PortForwardRequest) String() string            { return proto.CompactTextString(m) }
+func (*PortForwardRequest) ProtoMessage()               {}
+func (*PortForwardRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{57} }
+
+func (m *PortForwardRequest) GetPodSandboxId() string {
+	if m != nil && m.PodSandboxId != nil {
+		return *m.PodSandboxId
+	}
+	return ""
+}
+
+func (m *PortForwardRequest) GetPort() []int32 {
 	if m != nil {
-		return m.Stdout
+		return m.Port
 	}
 	return nil
 }
 
-func (m *ExecResponse) GetStderr() []byte {
-	if m != nil {
-		return m.Stderr
+type PortForwardResponse struct {
+	// Fully qualified URL of the port-forward streaming server.
+	Url              *string `protobuf:"bytes,1,opt,name=url" json:"url,omitempty"`
+	XXX_unrecognized []byte  `json:"-"`
+}
+
+func (m *PortForwardResponse) Reset()                    { *m = PortForwardResponse{} }
+func (m *PortForwardResponse) String() string            { return proto.CompactTextString(m) }
+func (*PortForwardResponse) ProtoMessage()               {}
+func (*PortForwardResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{58} }
+
+func (m *PortForwardResponse) GetUrl() string {
+	if m != nil && m.Url != nil {
+		return *m.Url
 	}
-	return nil
+	return ""
 }
 
 type ImageFilter struct {
-	// The spec of the image
+	// Spec of the image.
 	Image            *ImageSpec `protobuf:"bytes,1,opt,name=image" json:"image,omitempty"`
 	XXX_unrecognized []byte     `json:"-"`
 }
@@ -2096,7 +2404,7 @@ type ImageFilter struct {
 func (m *ImageFilter) Reset()                    { *m = ImageFilter{} }
 func (m *ImageFilter) String() string            { return proto.CompactTextString(m) }
 func (*ImageFilter) ProtoMessage()               {}
-func (*ImageFilter) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{51} }
+func (*ImageFilter) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{59} }
 
 func (m *ImageFilter) GetImage() *ImageSpec {
 	if m != nil {
@@ -2106,7 +2414,7 @@ func (m *ImageFilter) GetImage() *ImageSpec {
 }
 
 type ListImagesRequest struct {
-	// The filter to list images
+	// Filter to list images.
 	Filter           *ImageFilter `protobuf:"bytes,1,opt,name=filter" json:"filter,omitempty"`
 	XXX_unrecognized []byte       `json:"-"`
 }
@@ -2114,7 +2422,7 @@ type ListImagesRequest struct {
 func (m *ListImagesRequest) Reset()                    { *m = ListImagesRequest{} }
 func (m *ListImagesRequest) String() string            { return proto.CompactTextString(m) }
 func (*ListImagesRequest) ProtoMessage()               {}
-func (*ListImagesRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{52} }
+func (*ListImagesRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{60} }
 
 func (m *ListImagesRequest) GetFilter() *ImageFilter {
 	if m != nil {
@@ -2131,15 +2439,17 @@ type Image struct {
 	RepoTags []string `protobuf:"bytes,2,rep,name=repo_tags,json=repoTags" json:"repo_tags,omitempty"`
 	// Digests by which this image is known.
 	RepoDigests []string `protobuf:"bytes,3,rep,name=repo_digests,json=repoDigests" json:"repo_digests,omitempty"`
-	// The size of the image in bytes.
-	Size_            *uint64 `protobuf:"varint,4,opt,name=size" json:"size,omitempty"`
+	// Size of the image in bytes.
+	Size_ *uint64 `protobuf:"varint,4,opt,name=size" json:"size,omitempty"`
+	// User that will run the command(s).
+	User             *string `protobuf:"bytes,5,opt,name=user" json:"user,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
 
 func (m *Image) Reset()                    { *m = Image{} }
 func (m *Image) String() string            { return proto.CompactTextString(m) }
 func (*Image) ProtoMessage()               {}
-func (*Image) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{53} }
+func (*Image) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{61} }
 
 func (m *Image) GetId() string {
 	if m != nil && m.Id != nil {
@@ -2169,8 +2479,15 @@ func (m *Image) GetSize_() uint64 {
 	return 0
 }
 
+func (m *Image) GetUser() string {
+	if m != nil && m.User != nil {
+		return *m.User
+	}
+	return ""
+}
+
 type ListImagesResponse struct {
-	// List of images
+	// List of images.
 	Images           []*Image `protobuf:"bytes,1,rep,name=images" json:"images,omitempty"`
 	XXX_unrecognized []byte   `json:"-"`
 }
@@ -2178,7 +2495,7 @@ type ListImagesResponse struct {
 func (m *ListImagesResponse) Reset()                    { *m = ListImagesResponse{} }
 func (m *ListImagesResponse) String() string            { return proto.CompactTextString(m) }
 func (*ListImagesResponse) ProtoMessage()               {}
-func (*ListImagesResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{54} }
+func (*ListImagesResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{62} }
 
 func (m *ListImagesResponse) GetImages() []*Image {
 	if m != nil {
@@ -2188,7 +2505,7 @@ func (m *ListImagesResponse) GetImages() []*Image {
 }
 
 type ImageStatusRequest struct {
-	// The spec of the image
+	// Spec of the image.
 	Image            *ImageSpec `protobuf:"bytes,1,opt,name=image" json:"image,omitempty"`
 	XXX_unrecognized []byte     `json:"-"`
 }
@@ -2196,7 +2513,7 @@ type ImageStatusRequest struct {
 func (m *ImageStatusRequest) Reset()                    { *m = ImageStatusRequest{} }
 func (m *ImageStatusRequest) String() string            { return proto.CompactTextString(m) }
 func (*ImageStatusRequest) ProtoMessage()               {}
-func (*ImageStatusRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{55} }
+func (*ImageStatusRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{63} }
 
 func (m *ImageStatusRequest) GetImage() *ImageSpec {
 	if m != nil {
@@ -2206,7 +2523,7 @@ func (m *ImageStatusRequest) GetImage() *ImageSpec {
 }
 
 type ImageStatusResponse struct {
-	// The status of the image
+	// Status of the image.
 	Image            *Image `protobuf:"bytes,1,opt,name=image" json:"image,omitempty"`
 	XXX_unrecognized []byte `json:"-"`
 }
@@ -2214,7 +2531,7 @@ type ImageStatusResponse struct {
 func (m *ImageStatusResponse) Reset()                    { *m = ImageStatusResponse{} }
 func (m *ImageStatusResponse) String() string            { return proto.CompactTextString(m) }
 func (*ImageStatusResponse) ProtoMessage()               {}
-func (*ImageStatusResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{56} }
+func (*ImageStatusResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{64} }
 
 func (m *ImageStatusResponse) GetImage() *Image {
 	if m != nil {
@@ -2240,7 +2557,7 @@ type AuthConfig struct {
 func (m *AuthConfig) Reset()                    { *m = AuthConfig{} }
 func (m *AuthConfig) String() string            { return proto.CompactTextString(m) }
 func (*AuthConfig) ProtoMessage()               {}
-func (*AuthConfig) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{57} }
+func (*AuthConfig) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{65} }
 
 func (m *AuthConfig) GetUsername() string {
 	if m != nil && m.Username != nil {
@@ -2285,11 +2602,11 @@ func (m *AuthConfig) GetRegistryToken() string {
 }
 
 type PullImageRequest struct {
-	// The spec of the image
+	// Spec of the image.
 	Image *ImageSpec `protobuf:"bytes,1,opt,name=image" json:"image,omitempty"`
-	// The auth config for pulling image
+	// Authentication configuration for pulling the image.
 	Auth *AuthConfig `protobuf:"bytes,2,opt,name=auth" json:"auth,omitempty"`
-	// The config of the PodSandbox, which is used to pull image in PodSandbox context
+	// Config of the PodSandbox, which is used to pull image in PodSandbox context.
 	SandboxConfig    *PodSandboxConfig `protobuf:"bytes,3,opt,name=sandbox_config,json=sandboxConfig" json:"sandbox_config,omitempty"`
 	XXX_unrecognized []byte            `json:"-"`
 }
@@ -2297,7 +2614,7 @@ type PullImageRequest struct {
 func (m *PullImageRequest) Reset()                    { *m = PullImageRequest{} }
 func (m *PullImageRequest) String() string            { return proto.CompactTextString(m) }
 func (*PullImageRequest) ProtoMessage()               {}
-func (*PullImageRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{58} }
+func (*PullImageRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{66} }
 
 func (m *PullImageRequest) GetImage() *ImageSpec {
 	if m != nil {
@@ -2327,10 +2644,10 @@ type PullImageResponse struct {
 func (m *PullImageResponse) Reset()                    { *m = PullImageResponse{} }
 func (m *PullImageResponse) String() string            { return proto.CompactTextString(m) }
 func (*PullImageResponse) ProtoMessage()               {}
-func (*PullImageResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{59} }
+func (*PullImageResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{67} }
 
 type RemoveImageRequest struct {
-	// The spec of the image
+	// Spec of the image to remove.
 	Image            *ImageSpec `protobuf:"bytes,1,opt,name=image" json:"image,omitempty"`
 	XXX_unrecognized []byte     `json:"-"`
 }
@@ -2338,7 +2655,7 @@ type RemoveImageRequest struct {
 func (m *RemoveImageRequest) Reset()                    { *m = RemoveImageRequest{} }
 func (m *RemoveImageRequest) String() string            { return proto.CompactTextString(m) }
 func (*RemoveImageRequest) ProtoMessage()               {}
-func (*RemoveImageRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{60} }
+func (*RemoveImageRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{68} }
 
 func (m *RemoveImageRequest) GetImage() *ImageSpec {
 	if m != nil {
@@ -2354,15 +2671,181 @@ type RemoveImageResponse struct {
 func (m *RemoveImageResponse) Reset()                    { *m = RemoveImageResponse{} }
 func (m *RemoveImageResponse) String() string            { return proto.CompactTextString(m) }
 func (*RemoveImageResponse) ProtoMessage()               {}
-func (*RemoveImageResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{61} }
+func (*RemoveImageResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{69} }
+
+type NetworkConfig struct {
+	// CIDR to use for pod IP addresses.
+	PodCidr          *string `protobuf:"bytes,1,opt,name=pod_cidr,json=podCidr" json:"pod_cidr,omitempty"`
+	XXX_unrecognized []byte  `json:"-"`
+}
+
+func (m *NetworkConfig) Reset()                    { *m = NetworkConfig{} }
+func (m *NetworkConfig) String() string            { return proto.CompactTextString(m) }
+func (*NetworkConfig) ProtoMessage()               {}
+func (*NetworkConfig) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{70} }
+
+func (m *NetworkConfig) GetPodCidr() string {
+	if m != nil && m.PodCidr != nil {
+		return *m.PodCidr
+	}
+	return ""
+}
+
+type RuntimeConfig struct {
+	NetworkConfig    *NetworkConfig `protobuf:"bytes,1,opt,name=network_config,json=networkConfig" json:"network_config,omitempty"`
+	XXX_unrecognized []byte         `json:"-"`
+}
+
+func (m *RuntimeConfig) Reset()                    { *m = RuntimeConfig{} }
+func (m *RuntimeConfig) String() string            { return proto.CompactTextString(m) }
+func (*RuntimeConfig) ProtoMessage()               {}
+func (*RuntimeConfig) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{71} }
+
+func (m *RuntimeConfig) GetNetworkConfig() *NetworkConfig {
+	if m != nil {
+		return m.NetworkConfig
+	}
+	return nil
+}
+
+type UpdateRuntimeConfigRequest struct {
+	RuntimeConfig    *RuntimeConfig `protobuf:"bytes,1,opt,name=runtime_config,json=runtimeConfig" json:"runtime_config,omitempty"`
+	XXX_unrecognized []byte         `json:"-"`
+}
+
+func (m *UpdateRuntimeConfigRequest) Reset()                    { *m = UpdateRuntimeConfigRequest{} }
+func (m *UpdateRuntimeConfigRequest) String() string            { return proto.CompactTextString(m) }
+func (*UpdateRuntimeConfigRequest) ProtoMessage()               {}
+func (*UpdateRuntimeConfigRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{72} }
+
+func (m *UpdateRuntimeConfigRequest) GetRuntimeConfig() *RuntimeConfig {
+	if m != nil {
+		return m.RuntimeConfig
+	}
+	return nil
+}
+
+type UpdateRuntimeConfigResponse struct {
+	XXX_unrecognized []byte `json:"-"`
+}
+
+func (m *UpdateRuntimeConfigResponse) Reset()                    { *m = UpdateRuntimeConfigResponse{} }
+func (m *UpdateRuntimeConfigResponse) String() string            { return proto.CompactTextString(m) }
+func (*UpdateRuntimeConfigResponse) ProtoMessage()               {}
+func (*UpdateRuntimeConfigResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{73} }
+
+// RuntimeCondition contains condition information for the runtime.
+// There are 2 kinds of runtime conditions:
+// 1. Required condtitions: Conditions are required for kubelet to work
+// properly. If any required condition is unmet, the node will be not ready.
+// The required conditions include:
+//   * RuntimeReady: RuntimeReady means the runtime is up and ready to accept
+//   basic containers e.g. container only needs host network.
+//   * NetworkReady: NetworkReady means the runtime network is up and ready to
+//   accept containers which require container network.
+// 2. Optional conditions: Conditions are informative to the user, but kubelet
+// will not rely on. Since condition type is an arbitrary string, all conditions
+// not required are optional. These conditions will be exposed to users to help
+// them understand the status of the system.
+type RuntimeCondition struct {
+	// Type of runtime condition.
+	Type *string `protobuf:"bytes,1,opt,name=type" json:"type,omitempty"`
+	// Status of the condition, one of true/false.
+	Status *bool `protobuf:"varint,2,opt,name=status" json:"status,omitempty"`
+	// Brief CamelCase string containing reason for the condition's last transition.
+	Reason *string `protobuf:"bytes,3,opt,name=reason" json:"reason,omitempty"`
+	// Human-readable message indicating details about last transition.
+	Message          *string `protobuf:"bytes,4,opt,name=message" json:"message,omitempty"`
+	XXX_unrecognized []byte  `json:"-"`
+}
+
+func (m *RuntimeCondition) Reset()                    { *m = RuntimeCondition{} }
+func (m *RuntimeCondition) String() string            { return proto.CompactTextString(m) }
+func (*RuntimeCondition) ProtoMessage()               {}
+func (*RuntimeCondition) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{74} }
+
+func (m *RuntimeCondition) GetType() string {
+	if m != nil && m.Type != nil {
+		return *m.Type
+	}
+	return ""
+}
+
+func (m *RuntimeCondition) GetStatus() bool {
+	if m != nil && m.Status != nil {
+		return *m.Status
+	}
+	return false
+}
+
+func (m *RuntimeCondition) GetReason() string {
+	if m != nil && m.Reason != nil {
+		return *m.Reason
+	}
+	return ""
+}
+
+func (m *RuntimeCondition) GetMessage() string {
+	if m != nil && m.Message != nil {
+		return *m.Message
+	}
+	return ""
+}
+
+// RuntimeStatus is information about the current status of the runtime.
+type RuntimeStatus struct {
+	// List of current observed runtime conditions.
+	Conditions       []*RuntimeCondition `protobuf:"bytes,1,rep,name=conditions" json:"conditions,omitempty"`
+	XXX_unrecognized []byte              `json:"-"`
+}
+
+func (m *RuntimeStatus) Reset()                    { *m = RuntimeStatus{} }
+func (m *RuntimeStatus) String() string            { return proto.CompactTextString(m) }
+func (*RuntimeStatus) ProtoMessage()               {}
+func (*RuntimeStatus) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{75} }
+
+func (m *RuntimeStatus) GetConditions() []*RuntimeCondition {
+	if m != nil {
+		return m.Conditions
+	}
+	return nil
+}
+
+type StatusRequest struct {
+	XXX_unrecognized []byte `json:"-"`
+}
+
+func (m *StatusRequest) Reset()                    { *m = StatusRequest{} }
+func (m *StatusRequest) String() string            { return proto.CompactTextString(m) }
+func (*StatusRequest) ProtoMessage()               {}
+func (*StatusRequest) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{76} }
+
+type StatusResponse struct {
+	// Status of the Runtime.
+	Status           *RuntimeStatus `protobuf:"bytes,1,opt,name=status" json:"status,omitempty"`
+	XXX_unrecognized []byte         `json:"-"`
+}
+
+func (m *StatusResponse) Reset()                    { *m = StatusResponse{} }
+func (m *StatusResponse) String() string            { return proto.CompactTextString(m) }
+func (*StatusResponse) ProtoMessage()               {}
+func (*StatusResponse) Descriptor() ([]byte, []int) { return fileDescriptorApi, []int{77} }
+
+func (m *StatusResponse) GetStatus() *RuntimeStatus {
+	if m != nil {
+		return m.Status
+	}
+	return nil
+}
 
 func init() {
 	proto.RegisterType((*VersionRequest)(nil), "runtime.VersionRequest")
 	proto.RegisterType((*VersionResponse)(nil), "runtime.VersionResponse")
-	proto.RegisterType((*DNSOption)(nil), "runtime.DNSOption")
+	proto.RegisterType((*DNSConfig)(nil), "runtime.DNSConfig")
 	proto.RegisterType((*PortMapping)(nil), "runtime.PortMapping")
 	proto.RegisterType((*Mount)(nil), "runtime.Mount")
 	proto.RegisterType((*NamespaceOption)(nil), "runtime.NamespaceOption")
+	proto.RegisterType((*LinuxSandboxSecurityContext)(nil), "runtime.LinuxSandboxSecurityContext")
 	proto.RegisterType((*LinuxPodSandboxConfig)(nil), "runtime.LinuxPodSandboxConfig")
 	proto.RegisterType((*PodSandboxMetadata)(nil), "runtime.PodSandboxMetadata")
 	proto.RegisterType((*PodSandboxConfig)(nil), "runtime.PodSandboxConfig")
@@ -2387,9 +2870,10 @@ func init() {
 	proto.RegisterType((*LinuxContainerResources)(nil), "runtime.LinuxContainerResources")
 	proto.RegisterType((*SELinuxOption)(nil), "runtime.SELinuxOption")
 	proto.RegisterType((*Capability)(nil), "runtime.Capability")
+	proto.RegisterType((*LinuxContainerSecurityContext)(nil), "runtime.LinuxContainerSecurityContext")
 	proto.RegisterType((*LinuxContainerConfig)(nil), "runtime.LinuxContainerConfig")
-	proto.RegisterType((*LinuxUser)(nil), "runtime.LinuxUser")
 	proto.RegisterType((*ContainerMetadata)(nil), "runtime.ContainerMetadata")
+	proto.RegisterType((*Device)(nil), "runtime.Device")
 	proto.RegisterType((*ContainerConfig)(nil), "runtime.ContainerConfig")
 	proto.RegisterType((*CreateContainerRequest)(nil), "runtime.CreateContainerRequest")
 	proto.RegisterType((*CreateContainerResponse)(nil), "runtime.CreateContainerResponse")
@@ -2406,8 +2890,14 @@ func init() {
 	proto.RegisterType((*ContainerStatusRequest)(nil), "runtime.ContainerStatusRequest")
 	proto.RegisterType((*ContainerStatus)(nil), "runtime.ContainerStatus")
 	proto.RegisterType((*ContainerStatusResponse)(nil), "runtime.ContainerStatusResponse")
+	proto.RegisterType((*ExecSyncRequest)(nil), "runtime.ExecSyncRequest")
+	proto.RegisterType((*ExecSyncResponse)(nil), "runtime.ExecSyncResponse")
 	proto.RegisterType((*ExecRequest)(nil), "runtime.ExecRequest")
 	proto.RegisterType((*ExecResponse)(nil), "runtime.ExecResponse")
+	proto.RegisterType((*AttachRequest)(nil), "runtime.AttachRequest")
+	proto.RegisterType((*AttachResponse)(nil), "runtime.AttachResponse")
+	proto.RegisterType((*PortForwardRequest)(nil), "runtime.PortForwardRequest")
+	proto.RegisterType((*PortForwardResponse)(nil), "runtime.PortForwardResponse")
 	proto.RegisterType((*ImageFilter)(nil), "runtime.ImageFilter")
 	proto.RegisterType((*ListImagesRequest)(nil), "runtime.ListImagesRequest")
 	proto.RegisterType((*Image)(nil), "runtime.Image")
@@ -2419,8 +2909,16 @@ func init() {
 	proto.RegisterType((*PullImageResponse)(nil), "runtime.PullImageResponse")
 	proto.RegisterType((*RemoveImageRequest)(nil), "runtime.RemoveImageRequest")
 	proto.RegisterType((*RemoveImageResponse)(nil), "runtime.RemoveImageResponse")
+	proto.RegisterType((*NetworkConfig)(nil), "runtime.NetworkConfig")
+	proto.RegisterType((*RuntimeConfig)(nil), "runtime.RuntimeConfig")
+	proto.RegisterType((*UpdateRuntimeConfigRequest)(nil), "runtime.UpdateRuntimeConfigRequest")
+	proto.RegisterType((*UpdateRuntimeConfigResponse)(nil), "runtime.UpdateRuntimeConfigResponse")
+	proto.RegisterType((*RuntimeCondition)(nil), "runtime.RuntimeCondition")
+	proto.RegisterType((*RuntimeStatus)(nil), "runtime.RuntimeStatus")
+	proto.RegisterType((*StatusRequest)(nil), "runtime.StatusRequest")
+	proto.RegisterType((*StatusResponse)(nil), "runtime.StatusResponse")
 	proto.RegisterEnum("runtime.Protocol", Protocol_name, Protocol_value)
-	proto.RegisterEnum("runtime.PodSandBoxState", PodSandBoxState_name, PodSandBoxState_value)
+	proto.RegisterEnum("runtime.PodSandboxState", PodSandboxState_name, PodSandboxState_value)
 	proto.RegisterEnum("runtime.ContainerState", ContainerState_name, ContainerState_value)
 }
 
@@ -2435,38 +2933,60 @@ const _ = grpc.SupportPackageIsVersion3
 // Client API for RuntimeService service
 
 type RuntimeServiceClient interface {
-	// Version returns the runtime name, runtime version and runtime API version
+	// Version returns the runtime name, runtime version, and runtime API version.
 	Version(ctx context.Context, in *VersionRequest, opts ...grpc.CallOption) (*VersionResponse, error)
-	// RunPodSandbox creates and starts a pod-level sandbox. Runtimes should ensure
-	// the sandbox is in ready state.
+	// RunPodSandbox creates and starts a pod-level sandbox. Runtimes must ensure
+	// the sandbox is in the ready state on success.
 	RunPodSandbox(ctx context.Context, in *RunPodSandboxRequest, opts ...grpc.CallOption) (*RunPodSandboxResponse, error)
-	// StopPodSandbox stops the running sandbox. If there are any running
-	// containers in the sandbox, they should be forcibly terminated.
+	// StopPodSandbox stops any running process that is part of the sandbox and
+	// reclaims network resources (e.g., IP addresses) allocated to the sandbox.
+	// If there are any running containers in the sandbox, they must be forcibly
+	// terminated.
+	// This call is idempotent, and must not return an error if all relevant
+	// resources have already been reclaimed. kubelet will call StopPodSandbox
+	// at least once before calling RemovePodSandbox. It will also attempt to
+	// reclaim resources eagerly, as soon as a sandbox is not needed. Hence,
+	// multiple StopPodSandbox calls are expected.
 	StopPodSandbox(ctx context.Context, in *StopPodSandboxRequest, opts ...grpc.CallOption) (*StopPodSandboxResponse, error)
-	// RemovePodSandbox removes the sandbox. If there are any running containers in the
-	// sandbox, they should be forcibly removed.
-	// It should return success if the sandbox has already been removed.
+	// RemovePodSandbox removes the sandbox. If there are any running containers
+	// in the sandbox, they must be forcibly terminated and removed.
+	// This call is idempotent, and must not return an error if the sandbox has
+	// already been removed.
 	RemovePodSandbox(ctx context.Context, in *RemovePodSandboxRequest, opts ...grpc.CallOption) (*RemovePodSandboxResponse, error)
 	// PodSandboxStatus returns the status of the PodSandbox.
 	PodSandboxStatus(ctx context.Context, in *PodSandboxStatusRequest, opts ...grpc.CallOption) (*PodSandboxStatusResponse, error)
-	// ListPodSandbox returns a list of SandBox.
+	// ListPodSandbox returns a list of PodSandboxes.
 	ListPodSandbox(ctx context.Context, in *ListPodSandboxRequest, opts ...grpc.CallOption) (*ListPodSandboxResponse, error)
 	// CreateContainer creates a new container in specified PodSandbox
 	CreateContainer(ctx context.Context, in *CreateContainerRequest, opts ...grpc.CallOption) (*CreateContainerResponse, error)
 	// StartContainer starts the container.
 	StartContainer(ctx context.Context, in *StartContainerRequest, opts ...grpc.CallOption) (*StartContainerResponse, error)
 	// StopContainer stops a running container with a grace period (i.e., timeout).
+	// This call is idempotent, and must not return an error if the container has
+	// already been stopped.
+	// TODO: what must the runtime do after the grace period is reached?
 	StopContainer(ctx context.Context, in *StopContainerRequest, opts ...grpc.CallOption) (*StopContainerResponse, error)
 	// RemoveContainer removes the container. If the container is running, the
-	// container should be forcibly removed.
-	// It should return success if the container has already been removed.
+	// container must be forcibly removed.
+	// This call is idempotent, and must not return an error if the container has
+	// already been removed.
 	RemoveContainer(ctx context.Context, in *RemoveContainerRequest, opts ...grpc.CallOption) (*RemoveContainerResponse, error)
 	// ListContainers lists all containers by filters.
 	ListContainers(ctx context.Context, in *ListContainersRequest, opts ...grpc.CallOption) (*ListContainersResponse, error)
 	// ContainerStatus returns status of the container.
 	ContainerStatus(ctx context.Context, in *ContainerStatusRequest, opts ...grpc.CallOption) (*ContainerStatusResponse, error)
-	// Exec executes the command in the container.
-	Exec(ctx context.Context, opts ...grpc.CallOption) (RuntimeService_ExecClient, error)
+	// ExecSync runs a command in a container synchronously.
+	ExecSync(ctx context.Context, in *ExecSyncRequest, opts ...grpc.CallOption) (*ExecSyncResponse, error)
+	// Exec prepares a streaming endpoint to execute a command in the container.
+	Exec(ctx context.Context, in *ExecRequest, opts ...grpc.CallOption) (*ExecResponse, error)
+	// Attach prepares a streaming endpoint to attach to a running container.
+	Attach(ctx context.Context, in *AttachRequest, opts ...grpc.CallOption) (*AttachResponse, error)
+	// PortForward prepares a streaming endpoint to forward ports from a PodSandbox.
+	PortForward(ctx context.Context, in *PortForwardRequest, opts ...grpc.CallOption) (*PortForwardResponse, error)
+	// UpdateRuntimeConfig updates the runtime configuration based on the given request.
+	UpdateRuntimeConfig(ctx context.Context, in *UpdateRuntimeConfigRequest, opts ...grpc.CallOption) (*UpdateRuntimeConfigResponse, error)
+	// Status returns the status of the runtime.
+	Status(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusResponse, error)
 }
 
 type runtimeServiceClient struct {
@@ -2585,72 +3105,117 @@ func (c *runtimeServiceClient) ContainerStatus(ctx context.Context, in *Containe
 	return out, nil
 }
 
-func (c *runtimeServiceClient) Exec(ctx context.Context, opts ...grpc.CallOption) (RuntimeService_ExecClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_RuntimeService_serviceDesc.Streams[0], c.cc, "/runtime.RuntimeService/Exec", opts...)
+func (c *runtimeServiceClient) ExecSync(ctx context.Context, in *ExecSyncRequest, opts ...grpc.CallOption) (*ExecSyncResponse, error) {
+	out := new(ExecSyncResponse)
+	err := grpc.Invoke(ctx, "/runtime.RuntimeService/ExecSync", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &runtimeServiceExecClient{stream}
-	return x, nil
+	return out, nil
 }
 
-type RuntimeService_ExecClient interface {
-	Send(*ExecRequest) error
-	Recv() (*ExecResponse, error)
-	grpc.ClientStream
-}
-
-type runtimeServiceExecClient struct {
-	grpc.ClientStream
-}
-
-func (x *runtimeServiceExecClient) Send(m *ExecRequest) error {
-	return x.ClientStream.SendMsg(m)
-}
-
-func (x *runtimeServiceExecClient) Recv() (*ExecResponse, error) {
-	m := new(ExecResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
+func (c *runtimeServiceClient) Exec(ctx context.Context, in *ExecRequest, opts ...grpc.CallOption) (*ExecResponse, error) {
+	out := new(ExecResponse)
+	err := grpc.Invoke(ctx, "/runtime.RuntimeService/Exec", in, out, c.cc, opts...)
+	if err != nil {
 		return nil, err
 	}
-	return m, nil
+	return out, nil
+}
+
+func (c *runtimeServiceClient) Attach(ctx context.Context, in *AttachRequest, opts ...grpc.CallOption) (*AttachResponse, error) {
+	out := new(AttachResponse)
+	err := grpc.Invoke(ctx, "/runtime.RuntimeService/Attach", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *runtimeServiceClient) PortForward(ctx context.Context, in *PortForwardRequest, opts ...grpc.CallOption) (*PortForwardResponse, error) {
+	out := new(PortForwardResponse)
+	err := grpc.Invoke(ctx, "/runtime.RuntimeService/PortForward", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *runtimeServiceClient) UpdateRuntimeConfig(ctx context.Context, in *UpdateRuntimeConfigRequest, opts ...grpc.CallOption) (*UpdateRuntimeConfigResponse, error) {
+	out := new(UpdateRuntimeConfigResponse)
+	err := grpc.Invoke(ctx, "/runtime.RuntimeService/UpdateRuntimeConfig", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *runtimeServiceClient) Status(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusResponse, error) {
+	out := new(StatusResponse)
+	err := grpc.Invoke(ctx, "/runtime.RuntimeService/Status", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 // Server API for RuntimeService service
 
 type RuntimeServiceServer interface {
-	// Version returns the runtime name, runtime version and runtime API version
+	// Version returns the runtime name, runtime version, and runtime API version.
 	Version(context.Context, *VersionRequest) (*VersionResponse, error)
-	// RunPodSandbox creates and starts a pod-level sandbox. Runtimes should ensure
-	// the sandbox is in ready state.
+	// RunPodSandbox creates and starts a pod-level sandbox. Runtimes must ensure
+	// the sandbox is in the ready state on success.
 	RunPodSandbox(context.Context, *RunPodSandboxRequest) (*RunPodSandboxResponse, error)
-	// StopPodSandbox stops the running sandbox. If there are any running
-	// containers in the sandbox, they should be forcibly terminated.
+	// StopPodSandbox stops any running process that is part of the sandbox and
+	// reclaims network resources (e.g., IP addresses) allocated to the sandbox.
+	// If there are any running containers in the sandbox, they must be forcibly
+	// terminated.
+	// This call is idempotent, and must not return an error if all relevant
+	// resources have already been reclaimed. kubelet will call StopPodSandbox
+	// at least once before calling RemovePodSandbox. It will also attempt to
+	// reclaim resources eagerly, as soon as a sandbox is not needed. Hence,
+	// multiple StopPodSandbox calls are expected.
 	StopPodSandbox(context.Context, *StopPodSandboxRequest) (*StopPodSandboxResponse, error)
-	// RemovePodSandbox removes the sandbox. If there are any running containers in the
-	// sandbox, they should be forcibly removed.
-	// It should return success if the sandbox has already been removed.
+	// RemovePodSandbox removes the sandbox. If there are any running containers
+	// in the sandbox, they must be forcibly terminated and removed.
+	// This call is idempotent, and must not return an error if the sandbox has
+	// already been removed.
 	RemovePodSandbox(context.Context, *RemovePodSandboxRequest) (*RemovePodSandboxResponse, error)
 	// PodSandboxStatus returns the status of the PodSandbox.
 	PodSandboxStatus(context.Context, *PodSandboxStatusRequest) (*PodSandboxStatusResponse, error)
-	// ListPodSandbox returns a list of SandBox.
+	// ListPodSandbox returns a list of PodSandboxes.
 	ListPodSandbox(context.Context, *ListPodSandboxRequest) (*ListPodSandboxResponse, error)
 	// CreateContainer creates a new container in specified PodSandbox
 	CreateContainer(context.Context, *CreateContainerRequest) (*CreateContainerResponse, error)
 	// StartContainer starts the container.
 	StartContainer(context.Context, *StartContainerRequest) (*StartContainerResponse, error)
 	// StopContainer stops a running container with a grace period (i.e., timeout).
+	// This call is idempotent, and must not return an error if the container has
+	// already been stopped.
+	// TODO: what must the runtime do after the grace period is reached?
 	StopContainer(context.Context, *StopContainerRequest) (*StopContainerResponse, error)
 	// RemoveContainer removes the container. If the container is running, the
-	// container should be forcibly removed.
-	// It should return success if the container has already been removed.
+	// container must be forcibly removed.
+	// This call is idempotent, and must not return an error if the container has
+	// already been removed.
 	RemoveContainer(context.Context, *RemoveContainerRequest) (*RemoveContainerResponse, error)
 	// ListContainers lists all containers by filters.
 	ListContainers(context.Context, *ListContainersRequest) (*ListContainersResponse, error)
 	// ContainerStatus returns status of the container.
 	ContainerStatus(context.Context, *ContainerStatusRequest) (*ContainerStatusResponse, error)
-	// Exec executes the command in the container.
-	Exec(RuntimeService_ExecServer) error
+	// ExecSync runs a command in a container synchronously.
+	ExecSync(context.Context, *ExecSyncRequest) (*ExecSyncResponse, error)
+	// Exec prepares a streaming endpoint to execute a command in the container.
+	Exec(context.Context, *ExecRequest) (*ExecResponse, error)
+	// Attach prepares a streaming endpoint to attach to a running container.
+	Attach(context.Context, *AttachRequest) (*AttachResponse, error)
+	// PortForward prepares a streaming endpoint to forward ports from a PodSandbox.
+	PortForward(context.Context, *PortForwardRequest) (*PortForwardResponse, error)
+	// UpdateRuntimeConfig updates the runtime configuration based on the given request.
+	UpdateRuntimeConfig(context.Context, *UpdateRuntimeConfigRequest) (*UpdateRuntimeConfigResponse, error)
+	// Status returns the status of the runtime.
+	Status(context.Context, *StatusRequest) (*StatusResponse, error)
 }
 
 func RegisterRuntimeServiceServer(s *grpc.Server, srv RuntimeServiceServer) {
@@ -2873,30 +3438,112 @@ func _RuntimeService_ContainerStatus_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RuntimeService_Exec_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(RuntimeServiceServer).Exec(&runtimeServiceExecServer{stream})
-}
-
-type RuntimeService_ExecServer interface {
-	Send(*ExecResponse) error
-	Recv() (*ExecRequest, error)
-	grpc.ServerStream
-}
-
-type runtimeServiceExecServer struct {
-	grpc.ServerStream
-}
-
-func (x *runtimeServiceExecServer) Send(m *ExecResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func (x *runtimeServiceExecServer) Recv() (*ExecRequest, error) {
-	m := new(ExecRequest)
-	if err := x.ServerStream.RecvMsg(m); err != nil {
+func _RuntimeService_ExecSync_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExecSyncRequest)
+	if err := dec(in); err != nil {
 		return nil, err
 	}
-	return m, nil
+	if interceptor == nil {
+		return srv.(RuntimeServiceServer).ExecSync(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/runtime.RuntimeService/ExecSync",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RuntimeServiceServer).ExecSync(ctx, req.(*ExecSyncRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RuntimeService_Exec_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExecRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RuntimeServiceServer).Exec(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/runtime.RuntimeService/Exec",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RuntimeServiceServer).Exec(ctx, req.(*ExecRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RuntimeService_Attach_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AttachRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RuntimeServiceServer).Attach(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/runtime.RuntimeService/Attach",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RuntimeServiceServer).Attach(ctx, req.(*AttachRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RuntimeService_PortForward_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PortForwardRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RuntimeServiceServer).PortForward(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/runtime.RuntimeService/PortForward",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RuntimeServiceServer).PortForward(ctx, req.(*PortForwardRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RuntimeService_UpdateRuntimeConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateRuntimeConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RuntimeServiceServer).UpdateRuntimeConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/runtime.RuntimeService/UpdateRuntimeConfig",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RuntimeServiceServer).UpdateRuntimeConfig(ctx, req.(*UpdateRuntimeConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RuntimeService_Status_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RuntimeServiceServer).Status(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/runtime.RuntimeService/Status",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RuntimeServiceServer).Status(ctx, req.(*StatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 var _RuntimeService_serviceDesc = grpc.ServiceDesc{
@@ -2951,15 +3598,32 @@ var _RuntimeService_serviceDesc = grpc.ServiceDesc{
 			MethodName: "ContainerStatus",
 			Handler:    _RuntimeService_ContainerStatus_Handler,
 		},
-	},
-	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "Exec",
-			Handler:       _RuntimeService_Exec_Handler,
-			ServerStreams: true,
-			ClientStreams: true,
+			MethodName: "ExecSync",
+			Handler:    _RuntimeService_ExecSync_Handler,
+		},
+		{
+			MethodName: "Exec",
+			Handler:    _RuntimeService_Exec_Handler,
+		},
+		{
+			MethodName: "Attach",
+			Handler:    _RuntimeService_Attach_Handler,
+		},
+		{
+			MethodName: "PortForward",
+			Handler:    _RuntimeService_PortForward_Handler,
+		},
+		{
+			MethodName: "UpdateRuntimeConfig",
+			Handler:    _RuntimeService_UpdateRuntimeConfig_Handler,
+		},
+		{
+			MethodName: "Status",
+			Handler:    _RuntimeService_Status_Handler,
 		},
 	},
+	Streams:  []grpc.StreamDesc{},
 	Metadata: fileDescriptorApi,
 }
 
@@ -2968,12 +3632,14 @@ var _RuntimeService_serviceDesc = grpc.ServiceDesc{
 type ImageServiceClient interface {
 	// ListImages lists existing images.
 	ListImages(ctx context.Context, in *ListImagesRequest, opts ...grpc.CallOption) (*ListImagesResponse, error)
-	// ImageStatus returns the status of the image.
+	// ImageStatus returns the status of the image. If the image is not
+	// present, returns nil.
 	ImageStatus(ctx context.Context, in *ImageStatusRequest, opts ...grpc.CallOption) (*ImageStatusResponse, error)
 	// PullImage pulls an image with authentication config.
 	PullImage(ctx context.Context, in *PullImageRequest, opts ...grpc.CallOption) (*PullImageResponse, error)
 	// RemoveImage removes the image.
-	// It should return success if the image has already been removed.
+	// This call is idempotent, and must not return an error if the image has
+	// already been removed.
 	RemoveImage(ctx context.Context, in *RemoveImageRequest, opts ...grpc.CallOption) (*RemoveImageResponse, error)
 }
 
@@ -3026,12 +3692,14 @@ func (c *imageServiceClient) RemoveImage(ctx context.Context, in *RemoveImageReq
 type ImageServiceServer interface {
 	// ListImages lists existing images.
 	ListImages(context.Context, *ListImagesRequest) (*ListImagesResponse, error)
-	// ImageStatus returns the status of the image.
+	// ImageStatus returns the status of the image. If the image is not
+	// present, returns nil.
 	ImageStatus(context.Context, *ImageStatusRequest) (*ImageStatusResponse, error)
 	// PullImage pulls an image with authentication config.
 	PullImage(context.Context, *PullImageRequest) (*PullImageResponse, error)
 	// RemoveImage removes the image.
-	// It should return success if the image has already been removed.
+	// This call is idempotent, and must not return an error if the image has
+	// already been removed.
 	RemoveImage(context.Context, *RemoveImageRequest) (*RemoveImageResponse, error)
 }
 
@@ -3137,185 +3805,214 @@ var _ImageService_serviceDesc = grpc.ServiceDesc{
 }
 
 var fileDescriptorApi = []byte{
-	// 2865 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xcc, 0x5a, 0xcd, 0x72, 0x1b, 0xc7,
-	0xf1, 0x17, 0x08, 0x82, 0x04, 0x1a, 0x04, 0x08, 0x8e, 0x28, 0x12, 0x82, 0x64, 0x89, 0x5a, 0x5b,
-	0xff, 0xbf, 0x44, 0x5b, 0x2c, 0x85, 0x49, 0x49, 0x91, 0x6c, 0xcb, 0xa6, 0x49, 0x5a, 0x45, 0x4b,
-	0xa2, 0x98, 0x85, 0xa4, 0x58, 0x27, 0xd4, 0x0a, 0x3b, 0x24, 0x57, 0x02, 0x76, 0xd7, 0xbb, 0x0b,
-	0x46, 0xc8, 0x35, 0x97, 0x1c, 0xf2, 0x10, 0x39, 0xb8, 0x2a, 0x87, 0x54, 0x2e, 0xa9, 0xca, 0x25,
-	0xb7, 0x9c, 0x53, 0x79, 0x90, 0x3c, 0x41, 0x72, 0x4c, 0xcf, 0xc7, 0xce, 0xce, 0x7e, 0x80, 0x06,
-	0x95, 0xaa, 0x58, 0xb7, 0x9d, 0xee, 0x9e, 0x99, 0x9e, 0xee, 0x9e, 0x9e, 0xfe, 0xcd, 0x2c, 0xd4,
-	0x2c, 0xdf, 0xd9, 0xf0, 0x03, 0x2f, 0xf2, 0xc8, 0x7c, 0x30, 0x72, 0x23, 0x67, 0x48, 0x8d, 0x75,
-	0x68, 0xbe, 0xa0, 0x41, 0xe8, 0x78, 0xae, 0x49, 0xbf, 0x1b, 0xd1, 0x30, 0x22, 0x6d, 0x98, 0x3f,
-	0x11, 0x94, 0x76, 0x69, 0xad, 0x74, 0xa3, 0x66, 0xc6, 0x4d, 0xe3, 0x0f, 0x25, 0x58, 0x54, 0xc2,
-	0xa1, 0xef, 0xb9, 0x21, 0x9d, 0x2c, 0x4d, 0xae, 0xc1, 0x82, 0x9c, 0xa4, 0xe7, 0x5a, 0x43, 0xda,
-	0x9e, 0xe1, 0xec, 0xba, 0xa4, 0xed, 0x23, 0x89, 0xfc, 0x3f, 0x2c, 0xc6, 0x22, 0xf1, 0x20, 0x65,
-	0x2e, 0xd5, 0x94, 0x64, 0x39, 0x1b, 0xd9, 0x80, 0xf3, 0xb1, 0x20, 0xae, 0x41, 0x09, 0xcf, 0x72,
-	0xe1, 0x25, 0xc9, 0xda, 0xf2, 0x1d, 0x29, 0x6f, 0x6c, 0x41, 0x6d, 0x67, 0xbf, 0xfb, 0xd4, 0x8f,
-	0x58, 0x67, 0x54, 0x31, 0xa4, 0x01, 0xeb, 0x83, 0x2a, 0x96, 0x99, 0x8a, 0xb2, 0x49, 0x3a, 0x50,
-	0x0d, 0xa9, 0x15, 0xf4, 0x8f, 0x69, 0x88, 0xea, 0x31, 0x96, 0x6a, 0x1b, 0x7f, 0x2a, 0x41, 0xfd,
-	0xc0, 0x0b, 0xa2, 0x27, 0x96, 0xef, 0x3b, 0xee, 0x11, 0x21, 0x30, 0xcb, 0x97, 0x21, 0x56, 0xc9,
-	0xbf, 0xc9, 0x2d, 0xa8, 0x72, 0x73, 0xf6, 0xbd, 0x01, 0x5f, 0x5e, 0x73, 0x73, 0x69, 0x43, 0x2a,
-	0xb3, 0x71, 0x20, 0x19, 0xa6, 0x12, 0x21, 0xd7, 0xa1, 0xd9, 0xf7, 0xdc, 0xc8, 0x72, 0x5c, 0x1a,
-	0xf4, 0x7c, 0x1c, 0x9b, 0xaf, 0xb6, 0x62, 0x36, 0x14, 0x95, 0x4d, 0x48, 0x2e, 0x41, 0xed, 0xd8,
-	0x0b, 0x23, 0x21, 0x31, 0xcb, 0x25, 0xaa, 0x8c, 0xc0, 0x99, 0xab, 0x30, 0xcf, 0x99, 0x8e, 0xdf,
-	0xae, 0x70, 0x4d, 0xe6, 0x58, 0x73, 0xcf, 0x37, 0xbe, 0x2f, 0x41, 0xe5, 0x89, 0x87, 0x93, 0x17,
-	0x6a, 0x9a, 0x9e, 0xda, 0x8a, 0x8e, 0xa5, 0x3b, 0xb4, 0xa9, 0x91, 0x98, 0x4c, 0xcd, 0x24, 0x84,
-	0x2b, 0xc4, 0xd4, 0x8c, 0x89, 0xd6, 0x0a, 0xa8, 0x65, 0x7b, 0xee, 0x60, 0xcc, 0xd5, 0xaa, 0x9a,
-	0xaa, 0xcd, 0x3c, 0x19, 0xd2, 0x81, 0xe3, 0x8e, 0xde, 0xf6, 0x02, 0x3a, 0xb0, 0x5e, 0xd1, 0x01,
-	0x57, 0xaf, 0x6a, 0x36, 0x25, 0xd9, 0x14, 0x54, 0xe3, 0x35, 0x2c, 0x32, 0xd7, 0x87, 0xbe, 0xd5,
-	0xa7, 0xd2, 0x3f, 0x18, 0x28, 0x7c, 0x52, 0x97, 0x46, 0xbf, 0xf2, 0x82, 0x37, 0x5c, 0xef, 0xaa,
-	0x59, 0x67, 0xb4, 0x7d, 0x41, 0x22, 0x17, 0xa1, 0x2a, 0xf4, 0x72, 0x6c, 0xae, 0x78, 0xd5, 0xe4,
-	0x56, 0x38, 0x70, 0x6c, 0xc5, 0x72, 0xfc, 0x3e, 0xd7, 0x58, 0xb2, 0xf6, 0xfc, 0xbe, 0xf1, 0x9b,
-	0x12, 0x5c, 0x78, 0xcc, 0x26, 0x3f, 0xf0, 0xec, 0xae, 0xe5, 0xda, 0xaf, 0xbc, 0xb7, 0xdb, 0x9e,
-	0x7b, 0xe8, 0x1c, 0x91, 0x0f, 0xa1, 0xd1, 0x3f, 0x0a, 0xbc, 0x91, 0x8f, 0x2b, 0x0d, 0xa8, 0x1b,
-	0x49, 0x5b, 0x2d, 0x08, 0xe2, 0x01, 0xa7, 0x91, 0x5d, 0x58, 0x72, 0x63, 0x55, 0x7b, 0x1e, 0xd7,
-	0x35, 0xe4, 0xb3, 0xd7, 0x37, 0xdb, 0xca, 0xcd, 0x99, 0xc5, 0x98, 0x2d, 0x37, 0x4d, 0x08, 0x8d,
-	0x00, 0x48, 0x32, 0xff, 0x13, 0x1a, 0x59, 0xb6, 0x15, 0x59, 0x85, 0x4e, 0x6a, 0x41, 0x79, 0x24,
-	0x17, 0x58, 0x33, 0xd9, 0x27, 0xb9, 0x0c, 0x35, 0x35, 0x9e, 0xf4, 0x47, 0x42, 0x60, 0x81, 0x6d,
-	0x45, 0x11, 0x1d, 0xfa, 0x22, 0x4c, 0x1a, 0x66, 0xdc, 0x34, 0xfe, 0x3a, 0x0b, 0xad, 0xdc, 0xa2,
-	0xef, 0x42, 0x75, 0x28, 0xa7, 0xe7, 0xd3, 0xd6, 0x37, 0x2f, 0x25, 0xd1, 0x9a, 0xd3, 0xd0, 0x54,
-	0xc2, 0xcc, 0xf1, 0xcc, 0xa4, 0xda, 0x2e, 0x56, 0x6d, 0x66, 0xc9, 0x81, 0x77, 0xd4, 0xb3, 0x9d,
-	0x80, 0xf6, 0x23, 0x2f, 0x18, 0x4b, 0x2d, 0x17, 0x90, 0xb8, 0x13, 0xd3, 0xc8, 0x4f, 0xa1, 0x6e,
-	0xbb, 0xa1, 0xb2, 0xe1, 0x2c, 0x9f, 0x9c, 0xa8, 0xc9, 0xd5, 0x56, 0x35, 0x01, 0xc5, 0xa4, 0xdd,
-	0xc8, 0x3d, 0x68, 0xb0, 0x1d, 0xd0, 0x1b, 0x8a, 0x0d, 0x18, 0x62, 0x40, 0x95, 0xb1, 0xdb, 0xb2,
-	0xa6, 0xb3, 0xda, 0x9d, 0xe6, 0x82, 0x9f, 0x34, 0x42, 0xf2, 0x39, 0xcc, 0xf1, 0x68, 0x0b, 0xdb,
-	0x73, 0xbc, 0xcf, 0xf5, 0x82, 0x75, 0x0a, 0xa3, 0x6c, 0x3c, 0xe6, 0x72, 0xbb, 0x6e, 0x14, 0x8c,
-	0x4d, 0xd9, 0x89, 0x3c, 0x86, 0xba, 0xe5, 0xba, 0x5e, 0x64, 0x09, 0x75, 0xe7, 0xf9, 0x18, 0xeb,
-	0x93, 0xc7, 0xd8, 0x4a, 0x84, 0xc5, 0x40, 0x7a, 0x77, 0xf2, 0x33, 0xa8, 0xf0, 0x1d, 0xd0, 0xae,
-	0xf2, 0x65, 0x5f, 0x51, 0xe3, 0x14, 0x86, 0xa6, 0x29, 0x84, 0x3b, 0xf7, 0xa0, 0xae, 0xa9, 0xc6,
-	0x42, 0xe3, 0x0d, 0x1d, 0xcb, 0x68, 0x61, 0x9f, 0x64, 0x19, 0x2a, 0x27, 0xd6, 0x60, 0x14, 0x7b,
-	0x44, 0x34, 0xee, 0xcf, 0xfc, 0xbc, 0xd4, 0x79, 0x00, 0xad, 0xac, 0x46, 0x67, 0xe9, 0x6f, 0xec,
-	0xc1, 0xb2, 0x39, 0x72, 0x13, 0xc5, 0xe2, 0x83, 0xe1, 0x27, 0x30, 0xd7, 0xe7, 0x3a, 0xca, 0xe8,
-	0xb9, 0x38, 0xd1, 0x22, 0xa6, 0x14, 0x34, 0x3e, 0x87, 0x0b, 0x99, 0xa1, 0xe4, 0xb1, 0xf1, 0x11,
-	0x34, 0x7d, 0xcf, 0xee, 0x85, 0x82, 0xdc, 0xc3, 0xa8, 0x97, 0x3b, 0xd0, 0x57, 0xb2, 0x7b, 0x36,
-	0xeb, 0xde, 0x8d, 0x3c, 0x3f, 0xaf, 0xca, 0x74, 0xdd, 0xdb, 0xb0, 0x92, 0xed, 0x2e, 0xa6, 0x37,
-	0xbe, 0x80, 0x55, 0x93, 0x0e, 0xbd, 0x13, 0xfa, 0xae, 0x43, 0x77, 0xa0, 0x9d, 0x1f, 0x20, 0x19,
-	0x3c, 0xa1, 0x76, 0xd1, 0x0d, 0xa3, 0xf0, 0x6c, 0x83, 0xdf, 0xd4, 0x07, 0x90, 0x29, 0x50, 0x8c,
-	0x43, 0x9a, 0x30, 0x83, 0x99, 0x5f, 0x74, 0xc2, 0x2f, 0xe3, 0x25, 0xd4, 0xf6, 0xf5, 0x7c, 0xa0,
-	0xe7, 0x50, 0x3c, 0xe8, 0x64, 0x93, 0x6c, 0xc2, 0xfc, 0xb4, 0x09, 0x2c, 0x16, 0x34, 0x1e, 0xe5,
-	0x92, 0xa7, 0xd4, 0x61, 0x13, 0x40, 0xe5, 0xa0, 0x50, 0xc6, 0x02, 0xc9, 0x8f, 0x67, 0x6a, 0x52,
-	0xc6, 0xf7, 0xa9, 0x84, 0xa4, 0x2d, 0xc6, 0x56, 0x8b, 0xb1, 0x53, 0x09, 0x6a, 0xe6, 0x2c, 0x09,
-	0x6a, 0x03, 0x2a, 0x21, 0x0e, 0x29, 0x52, 0x64, 0x53, 0x5b, 0x9c, 0xec, 0xf5, 0x95, 0x98, 0x92,
-	0x9a, 0x42, 0x8c, 0x7c, 0x00, 0xd0, 0xc7, 0xa3, 0x2b, 0xa2, 0x76, 0xcf, 0x12, 0xb9, 0xb3, 0x6c,
-	0xd6, 0x24, 0x65, 0x2b, 0x22, 0xf7, 0x13, 0x3b, 0x56, 0xb8, 0x1a, 0x6b, 0x05, 0x6a, 0xa4, 0xfc,
-	0x92, 0x58, 0x5a, 0xed, 0xf6, 0xb9, 0xd3, 0x77, 0xbb, 0xec, 0x27, 0x84, 0xb5, 0x84, 0x35, 0x3f,
-	0x31, 0x61, 0x89, 0x1e, 0xd3, 0x24, 0xac, 0xea, 0xc4, 0x84, 0x25, 0xc7, 0x38, 0x35, 0x61, 0xfd,
-	0x98, 0xa9, 0xe7, 0x09, 0xb4, 0xf3, 0x5b, 0x47, 0xa6, 0x0c, 0x4c, 0x3f, 0x21, 0xa7, 0x9c, 0x92,
-	0x7e, 0x64, 0x17, 0x29, 0x68, 0xfc, 0xb3, 0xa4, 0x47, 0xdd, 0xd7, 0xce, 0x20, 0xa2, 0x41, 0x2e,
-	0xea, 0x54, 0xf0, 0xcc, 0x4c, 0x17, 0x3c, 0x5d, 0x68, 0x72, 0xb3, 0xf7, 0xb0, 0xb2, 0xe1, 0xe7,
-	0x1b, 0x46, 0x1d, 0xb3, 0xf7, 0x27, 0x05, 0xfa, 0x88, 0x29, 0x85, 0xcf, 0xba, 0x52, 0x5c, 0x58,
-	0xbc, 0x31, 0xd0, 0x69, 0x9d, 0x2f, 0x81, 0xe4, 0x85, 0xce, 0x64, 0xba, 0x6f, 0xd8, 0x76, 0x65,
-	0x45, 0x62, 0x41, 0xda, 0x3e, 0xe4, 0x6a, 0x9c, 0x62, 0x37, 0xa1, 0xa7, 0x29, 0x05, 0x8d, 0xdf,
-	0x97, 0x01, 0x12, 0xe6, 0x7b, 0xbb, 0x4f, 0xef, 0xaa, 0x5d, 0x23, 0x4a, 0x83, 0xab, 0x05, 0x5a,
-	0x14, 0xee, 0x97, 0xaf, 0xd3, 0xfb, 0x45, 0x14, 0x09, 0x1f, 0x15, 0xf5, 0x7e, 0x6f, 0x77, 0xca,
-	0x36, 0xac, 0x64, 0xdd, 0x2d, 0xf7, 0xc9, 0x4d, 0xa8, 0x38, 0x58, 0x05, 0x0a, 0xb0, 0x53, 0xdf,
-	0x3c, 0x5f, 0xb0, 0x2c, 0x53, 0x48, 0x18, 0xd7, 0xa0, 0xb6, 0x37, 0xb4, 0x8e, 0x68, 0xd7, 0xa7,
-	0x7d, 0x36, 0x97, 0xc3, 0x1a, 0x72, 0x7e, 0xd1, 0x30, 0x36, 0xa1, 0xfa, 0x88, 0x8e, 0x5f, 0xb0,
-	0x79, 0xa7, 0xd5, 0xcf, 0xf8, 0x7b, 0x09, 0x56, 0x79, 0xba, 0xdb, 0x8e, 0xc1, 0x05, 0x2a, 0xe7,
-	0x8d, 0x02, 0x3c, 0x08, 0xb8, 0x4b, 0xfd, 0x51, 0xcf, 0xa7, 0x81, 0xe3, 0x89, 0x98, 0x62, 0x2e,
-	0xf5, 0x47, 0x07, 0x9c, 0xc0, 0x00, 0x08, 0x63, 0x7f, 0x37, 0xf2, 0x64, 0x6c, 0x95, 0xcd, 0x2a,
-	0x12, 0x7e, 0xc1, 0xda, 0x71, 0xdf, 0xf0, 0x18, 0xeb, 0xf3, 0x90, 0xc7, 0x90, 0xe8, 0xdb, 0xe5,
-	0x04, 0x0c, 0xf4, 0x0b, 0x43, 0x3c, 0x93, 0x83, 0x71, 0x6f, 0xe0, 0x0c, 0x1d, 0x44, 0x04, 0x6e,
-	0xef, 0xd5, 0x38, 0xa2, 0xa1, 0x0c, 0x1c, 0x22, 0x98, 0x8f, 0x19, 0x6f, 0xcf, 0xfd, 0x8a, 0x71,
-	0x88, 0x01, 0x0d, 0xcf, 0x1b, 0xf6, 0xc2, 0xbe, 0x17, 0x20, 0xb2, 0xb4, 0x5f, 0xf3, 0x7c, 0x5f,
-	0x36, 0xeb, 0x48, 0xec, 0x32, 0xda, 0x96, 0xfd, 0xda, 0xb0, 0xa0, 0xd1, 0xdd, 0xe5, 0xcb, 0x91,
-	0x78, 0x05, 0x4b, 0xf7, 0x51, 0x28, 0xb7, 0x13, 0x96, 0xee, 0xec, 0x9b, 0xd1, 0x02, 0x6f, 0x10,
-	0xdb, 0x81, 0x7f, 0x33, 0x5a, 0x34, 0xf6, 0xe3, 0xba, 0x9d, 0x7f, 0x33, 0x83, 0x0d, 0xe8, 0x09,
-	0xa2, 0x23, 0x01, 0x5d, 0x45, 0xc3, 0xb0, 0x01, 0xb6, 0x2d, 0xdf, 0x7a, 0xe5, 0x0c, 0x9c, 0x68,
-	0x8c, 0x0e, 0x6c, 0x59, 0xb6, 0xdd, 0xeb, 0xc7, 0x14, 0x87, 0xc6, 0xc0, 0x75, 0x11, 0xe9, 0xdb,
-	0x1a, 0x99, 0x7c, 0x0c, 0x4b, 0x76, 0xe0, 0xf9, 0x69, 0x59, 0x81, 0x64, 0x5b, 0x8c, 0xa1, 0x0b,
-	0x1b, 0xff, 0x2e, 0xc1, 0x72, 0xda, 0x2d, 0x12, 0x18, 0x3c, 0x80, 0x5a, 0x10, 0x3b, 0x48, 0x26,
-	0x89, 0xb5, 0xf4, 0xb9, 0x95, 0x77, 0xa4, 0x99, 0x74, 0xc1, 0x7d, 0xb8, 0x90, 0x51, 0xa0, 0x94,
-	0x0a, 0xbc, 0x64, 0x6d, 0x66, 0x4a, 0x90, 0x7c, 0x91, 0xa0, 0xc6, 0xb8, 0x3c, 0x29, 0xf3, 0xbe,
-	0x2b, 0xaa, 0x6f, 0xca, 0xf4, 0x0a, 0x4d, 0xc6, 0x18, 0xe1, 0xff, 0xa4, 0x2b, 0xb2, 0x88, 0x82,
-	0xf7, 0x79, 0x8e, 0x1c, 0xe1, 0x1e, 0xe3, 0x5b, 0xa8, 0x29, 0x52, 0x0c, 0xb3, 0x44, 0xec, 0x71,
-	0x98, 0x85, 0x94, 0x23, 0x09, 0xbc, 0x90, 0x82, 0x9f, 0x0c, 0xcf, 0xa2, 0xad, 0x1d, 0x36, 0x8b,
-	0x35, 0xe8, 0x21, 0x25, 0xe4, 0x59, 0xbe, 0x6c, 0x36, 0x13, 0xf2, 0x43, 0xa4, 0x1a, 0x5b, 0xb0,
-	0xa4, 0x8c, 0x73, 0x2a, 0xb8, 0xd3, 0xc0, 0xda, 0x4c, 0x1a, 0xac, 0xfd, 0xab, 0x02, 0x8b, 0x59,
-	0x97, 0xdc, 0xc9, 0x61, 0xb5, 0x4e, 0x62, 0xce, 0xec, 0x7c, 0x5a, 0x86, 0xbd, 0x11, 0x6f, 0xe2,
-	0x99, 0x8c, 0x45, 0xd4, 0x3e, 0x97, 0x1b, 0x9b, 0xe9, 0xd3, 0xf7, 0x86, 0x43, 0x4c, 0x08, 0x7c,
-	0x65, 0x58, 0x2c, 0xca, 0x26, 0xd3, 0xde, 0x0a, 0x8e, 0xd8, 0xb6, 0x61, 0x64, 0xfe, 0x4d, 0xae,
-	0x42, 0x9d, 0x95, 0x37, 0x88, 0xae, 0x18, 0xd4, 0x93, 0x57, 0x0f, 0x20, 0x49, 0x08, 0xf4, 0xc8,
-	0x75, 0x98, 0xa5, 0xee, 0x49, 0x9c, 0x4b, 0x93, 0x6b, 0x90, 0x38, 0x79, 0x98, 0x9c, 0x8d, 0x0e,
-	0x9b, 0x1b, 0xb2, 0x4b, 0x8a, 0xb8, 0xd0, 0x69, 0x2a, 0x41, 0x7e, 0x77, 0x61, 0x4a, 0x2e, 0xf9,
-	0x4c, 0xa5, 0xf6, 0x6a, 0x26, 0x39, 0x67, 0x2c, 0x55, 0x98, 0xdf, 0x1f, 0xa5, 0xf3, 0x7b, 0x8d,
-	0x0f, 0x71, 0x73, 0xe2, 0x10, 0xa7, 0xe3, 0xb7, 0x2b, 0x00, 0x7e, 0xe0, 0x9c, 0x38, 0x03, 0x7a,
-	0x44, 0xed, 0x36, 0xf0, 0x2b, 0x06, 0x8d, 0xc2, 0x2f, 0xb1, 0xe4, 0x35, 0x48, 0x2f, 0xf0, 0xbc,
-	0xe8, 0x30, 0x6c, 0xd7, 0xc5, 0xd5, 0x47, 0x4c, 0x36, 0x39, 0x95, 0xdd, 0x54, 0x30, 0xa8, 0xcc,
-	0xef, 0x56, 0x16, 0x44, 0x7d, 0x8e, 0x6d, 0x7e, 0xb5, 0xb2, 0xcc, 0x0e, 0x46, 0xdb, 0x71, 0xdb,
-	0x0d, 0xde, 0x53, 0x34, 0x58, 0xbe, 0xe3, 0x1f, 0x3d, 0xcf, 0x45, 0xf8, 0xdf, 0xe4, 0xac, 0x1a,
-	0xa7, 0x3c, 0x45, 0x02, 0x8b, 0xda, 0x28, 0x1a, 0xb7, 0x17, 0x39, 0x9d, 0x7d, 0x22, 0xce, 0x96,
-	0xc5, 0x67, 0x8b, 0x7b, 0xff, 0x83, 0x09, 0x9b, 0xf8, 0xbd, 0x41, 0x9a, 0x7f, 0x2e, 0xc1, 0xca,
-	0x36, 0x3f, 0xce, 0xb5, 0x04, 0x73, 0x06, 0xa4, 0x44, 0x6e, 0x2b, 0x48, 0x9a, 0x85, 0x35, 0xd9,
-	0xc5, 0x4a, 0x39, 0xf2, 0x25, 0x34, 0xe3, 0x31, 0x65, 0xcf, 0xf2, 0x0f, 0x81, 0xd9, 0x46, 0xa8,
-	0x37, 0x8d, 0xcf, 0x60, 0x35, 0xa7, 0xb3, 0x3c, 0x7a, 0xaf, 0x61, 0x22, 0x54, 0xb7, 0x6c, 0x4a,
-	0xe5, 0xba, 0xa2, 0x21, 0xb6, 0xbb, 0xcf, 0x20, 0xad, 0x15, 0x44, 0xb9, 0x05, 0x4f, 0xd1, 0x97,
-	0xe3, 0xd9, 0x74, 0x5f, 0x09, 0x39, 0xbb, 0xb0, 0xcc, 0x90, 0xee, 0x3b, 0x0c, 0xca, 0xf2, 0x00,
-	0x5b, 0xb6, 0x37, 0x8a, 0x64, 0xfe, 0x8b, 0x9b, 0xc6, 0xaa, 0x40, 0xdf, 0xf9, 0xd9, 0x3e, 0x85,
-	0x15, 0x01, 0x7e, 0xdf, 0x65, 0x11, 0x17, 0x63, 0xe8, 0x9d, 0x1f, 0xf7, 0x77, 0x33, 0x5a, 0x22,
-	0x9c, 0x50, 0xad, 0xdf, 0x4a, 0x57, 0xeb, 0xab, 0x79, 0x87, 0xa7, 0x2a, 0xc8, 0x7c, 0x18, 0x95,
-	0x0b, 0xc2, 0xc8, 0xcc, 0x95, 0xf4, 0xb3, 0x3c, 0x65, 0x7c, 0x9c, 0x1f, 0xfd, 0x7f, 0x58, 0xd1,
-	0xef, 0x89, 0x8a, 0x5e, 0x4d, 0xad, 0x6e, 0x11, 0x6e, 0x67, 0x2a, 0xfa, 0xf6, 0x24, 0x35, 0x55,
-	0x41, 0xff, 0xdb, 0x59, 0xa8, 0x29, 0x5e, 0xce, 0xa6, 0x79, 0x23, 0xcd, 0x14, 0x18, 0x49, 0x3f,
-	0x92, 0xca, 0xef, 0x72, 0x24, 0xcd, 0xfe, 0xd0, 0x91, 0x84, 0xc5, 0x1f, 0xff, 0xe8, 0x05, 0xf4,
-	0x50, 0x1e, 0x31, 0x55, 0x4e, 0x30, 0xe9, 0x61, 0xe2, 0xf8, 0xb9, 0xa9, 0x1c, 0x9f, 0x86, 0x0e,
-	0xf3, 0x59, 0xe8, 0x70, 0x27, 0x73, 0xbe, 0x5c, 0xc9, 0x0f, 0x57, 0x78, 0xb2, 0xec, 0x16, 0x9d,
-	0x2c, 0x1f, 0x16, 0x74, 0x7e, 0x6f, 0x81, 0xc3, 0x63, 0x01, 0x1c, 0xf4, 0xa8, 0x92, 0xd9, 0x6b,
-	0x13, 0x4d, 0xa6, 0xa8, 0x12, 0x3d, 0x90, 0xfc, 0xd2, 0x4c, 0x4d, 0x8a, 0xa5, 0x82, 0x94, 0xfd,
-	0x93, 0xab, 0xae, 0x29, 0x52, 0xc1, 0x1f, 0xf5, 0xc2, 0x67, 0xc2, 0x9d, 0xd0, 0x9d, 0x1c, 0xd6,
-	0x9c, 0x2e, 0xea, 0x6e, 0xa5, 0xa1, 0xe6, 0xd9, 0xc2, 0x25, 0x87, 0x34, 0xf9, 0x49, 0x8c, 0x99,
-	0x57, 0xb0, 0x05, 0x48, 0xa8, 0x49, 0x0a, 0xb2, 0xb1, 0x3a, 0x3a, 0x74, 0x5c, 0x27, 0x3c, 0x16,
-	0xfc, 0x39, 0xce, 0x87, 0x98, 0xb4, 0xc5, 0x9f, 0x74, 0xe8, 0x5b, 0x84, 0x24, 0x7d, 0xcf, 0xa6,
-	0x3c, 0x18, 0x2b, 0x66, 0x95, 0x11, 0xb6, 0xb1, 0x9d, 0x6c, 0x90, 0xea, 0x99, 0x36, 0x48, 0x2d,
-	0xb3, 0x41, 0x56, 0x60, 0x0e, 0xf5, 0x0d, 0x3d, 0x97, 0xd7, 0x28, 0x35, 0x53, 0xb6, 0x58, 0x82,
-	0x1f, 0xd2, 0x30, 0x64, 0x13, 0xd4, 0x45, 0xd5, 0x21, 0x9b, 0x5a, 0x91, 0xb5, 0x30, 0xa9, 0xc8,
-	0x3a, 0xe5, 0xd2, 0x29, 0x53, 0x64, 0x35, 0x26, 0x15, 0x59, 0xd3, 0xdc, 0x39, 0x69, 0x75, 0x61,
-	0xf3, 0xb4, 0xba, 0xf0, 0xc7, 0xdc, 0x38, 0x8f, 0xf0, 0xdc, 0xcf, 0x86, 0xba, 0xdc, 0x39, 0xb7,
-	0x33, 0x57, 0x53, 0xed, 0x49, 0x56, 0x50, 0x37, 0x53, 0xaf, 0xa1, 0xbe, 0xfb, 0x16, 0x1d, 0x3b,
-	0xfd, 0x39, 0x8d, 0xaa, 0xf6, 0x87, 0xb6, 0x04, 0x77, 0xec, 0x33, 0xae, 0xff, 0xca, 0x49, 0xfd,
-	0xa7, 0xca, 0x48, 0x16, 0xc0, 0x0b, 0xb2, 0x8c, 0x34, 0x1e, 0xc0, 0x82, 0x98, 0x4b, 0x6a, 0xbb,
-	0xc2, 0xb4, 0xb5, 0xd9, 0x81, 0x5f, 0xe2, 0x62, 0xb2, 0x25, 0xe9, 0x34, 0x08, 0xf8, 0xda, 0x05,
-	0x1d, 0x5b, 0xc6, 0x5d, 0xa8, 0xf3, 0x48, 0x94, 0x27, 0xf2, 0x0d, 0xfd, 0x9e, 0xe0, 0xb4, 0x70,
-	0x65, 0xd8, 0x88, 0xa5, 0x1a, 0x4e, 0x57, 0x79, 0xe1, 0x93, 0xcc, 0xe1, 0xb5, 0x9c, 0xee, 0x9f,
-	0x39, 0xb8, 0xde, 0x40, 0x85, 0x93, 0x73, 0x79, 0xe1, 0x12, 0xc3, 0xac, 0xbe, 0xd7, 0x8b, 0xac,
-	0x23, 0xf5, 0x76, 0xcb, 0x08, 0xcf, 0xb0, 0xcd, 0x9f, 0x9e, 0x19, 0xd3, 0x76, 0x70, 0xe2, 0x28,
-	0x94, 0x00, 0xa7, 0xce, 0x68, 0x3b, 0x82, 0xc4, 0x40, 0x4e, 0xe8, 0xfc, 0x5a, 0x1c, 0x4a, 0xb3,
-	0x26, 0xff, 0xc6, 0xca, 0x8e, 0xe8, 0xfa, 0x4a, 0x73, 0x61, 0x68, 0xf2, 0xe5, 0xc4, 0x29, 0xb1,
-	0x99, 0x56, 0xd8, 0x94, 0x5c, 0x34, 0x33, 0x11, 0x16, 0x48, 0xa5, 0xc1, 0xe9, 0xad, 0xf5, 0x29,
-	0x9c, 0x4f, 0xf5, 0x57, 0x2f, 0x25, 0xa9, 0x01, 0xb2, 0xb3, 0xcb, 0xce, 0xff, 0x28, 0x01, 0x6c,
-	0x8d, 0xa2, 0x63, 0x09, 0x1f, 0x3b, 0x50, 0x65, 0xb8, 0x57, 0x03, 0xa1, 0xaa, 0xcd, 0x78, 0xbe,
-	0x15, 0x86, 0x88, 0xdd, 0xe2, 0x73, 0x5e, 0xb5, 0x39, 0xf4, 0x1b, 0xa9, 0xa7, 0x5f, 0xfe, 0xcd,
-	0x9e, 0x8e, 0xc5, 0x7b, 0x79, 0x0f, 0xa1, 0x2f, 0x82, 0xfe, 0x50, 0xde, 0x5d, 0x34, 0x04, 0x75,
-	0x4b, 0x10, 0x99, 0x98, 0x63, 0x53, 0x54, 0x2d, 0x1a, 0xf7, 0x22, 0xef, 0x0d, 0x75, 0xe5, 0x09,
-	0xde, 0x88, 0xa9, 0xcf, 0x18, 0x91, 0x89, 0x05, 0xf4, 0x08, 0xad, 0x1c, 0xc4, 0x62, 0x73, 0x42,
-	0x2c, 0xa6, 0x72, 0x31, 0xf6, 0xab, 0x41, 0xeb, 0x60, 0x34, 0x18, 0x88, 0x45, 0x9e, 0xd5, 0x96,
-	0x88, 0xc9, 0xc4, 0x3a, 0xb2, 0x37, 0x11, 0x89, 0x89, 0xe4, 0xe2, 0xfe, 0x7b, 0x38, 0x70, 0x1e,
-	0x96, 0x34, 0x45, 0x65, 0x25, 0x8b, 0xb1, 0x20, 0x8a, 0xdc, 0x77, 0xd3, 0xdf, 0xb8, 0x00, 0xe7,
-	0x53, 0xfd, 0xc5, 0xb0, 0xeb, 0x97, 0xa1, 0x1a, 0xff, 0x56, 0x40, 0xe6, 0xa1, 0xfc, 0x6c, 0xfb,
-	0xa0, 0x75, 0x8e, 0x7d, 0x3c, 0xdf, 0x39, 0x68, 0x95, 0xd6, 0xd7, 0x61, 0x31, 0x73, 0x8f, 0x4a,
-	0x6a, 0x50, 0x31, 0x77, 0xb7, 0x76, 0x5e, 0xa2, 0xd8, 0x02, 0x54, 0xf7, 0x9f, 0x3e, 0x13, 0xad,
-	0xd2, 0xfa, 0x36, 0x34, 0xd3, 0x07, 0x21, 0xa9, 0xc3, 0xfc, 0x36, 0x72, 0x9f, 0xed, 0xee, 0xa0,
-	0x30, 0x36, 0xcc, 0xe7, 0xfb, 0xfb, 0x7b, 0xfb, 0x0f, 0x5b, 0x25, 0x02, 0x30, 0xb7, 0xfb, 0xed,
-	0x1e, 0x63, 0xcc, 0x30, 0xc6, 0xf3, 0xfd, 0x47, 0xfb, 0x4f, 0x7f, 0xb9, 0xdf, 0x2a, 0x6f, 0xfe,
-	0xad, 0x0a, 0x4d, 0x53, 0x2c, 0xa1, 0x8b, 0xb1, 0xe0, 0x20, 0x26, 0x7d, 0x00, 0xf3, 0xf1, 0x3f,
-	0x1b, 0xc9, 0x91, 0x9b, 0xfe, 0xc1, 0xa4, 0xd3, 0xce, 0x33, 0xa4, 0xd9, 0xce, 0x91, 0x03, 0x68,
-	0xa4, 0x1e, 0x0c, 0x49, 0x82, 0x61, 0x8b, 0xde, 0x24, 0x3b, 0x57, 0x26, 0xb1, 0xd5, 0x88, 0x5d,
-	0x68, 0xa6, 0x1f, 0x01, 0x49, 0xd2, 0xa7, 0xf0, 0x71, 0xb1, 0x73, 0x75, 0x22, 0x5f, 0x0d, 0xfa,
-	0x12, 0x5a, 0xd9, 0xe7, 0x3f, 0x92, 0x5c, 0x99, 0x4d, 0x78, 0x5a, 0xec, 0x5c, 0x3b, 0x45, 0x42,
-	0x1f, 0x3a, 0xf7, 0x50, 0xb6, 0x36, 0xf9, 0xa9, 0x23, 0x37, 0xf4, 0xa4, 0xf7, 0x13, 0x61, 0x8a,
-	0xf4, 0x9d, 0x31, 0xd1, 0x9f, 0xa7, 0x0a, 0xde, 0x0e, 0x34, 0x53, 0x14, 0x5f, 0x36, 0xe3, 0xa0,
-	0x2f, 0xb0, 0x86, 0x4b, 0xc3, 0x61, 0x92, 0xf4, 0x2a, 0x06, 0xf7, 0x9d, 0xb5, 0xc9, 0x02, 0x69,
-	0xbf, 0xe9, 0x60, 0x37, 0xe5, 0xb7, 0x02, 0x04, 0x9d, 0xf2, 0x5b, 0x21, 0x4a, 0xe6, 0xe1, 0x95,
-	0x82, 0xb4, 0x5a, 0x78, 0x15, 0xe1, 0xe7, 0xce, 0x95, 0x49, 0x6c, 0x7d, 0xf9, 0x19, 0x38, 0xab,
-	0x2d, 0xbf, 0x18, 0x25, 0x77, 0xd6, 0x26, 0x0b, 0x64, 0x7d, 0x95, 0x94, 0xe9, 0x19, 0x5f, 0xe5,
-	0x50, 0x61, 0xc6, 0x57, 0xf9, 0xfa, 0x5e, 0xfa, 0x2a, 0x53, 0x6f, 0x5f, 0x9d, 0x58, 0xaa, 0xe4,
-	0x7d, 0x55, 0x5c, 0xfd, 0xe0, 0xb8, 0xf7, 0x60, 0x96, 0x55, 0x18, 0x24, 0x39, 0xcb, 0xb5, 0xe2,
-	0xa6, 0x73, 0x21, 0x43, 0x8d, 0xbb, 0xdd, 0x28, 0xdd, 0x2e, 0x6d, 0xfe, 0x65, 0x06, 0x16, 0x44,
-	0xfa, 0x93, 0x19, 0xe4, 0x21, 0x40, 0x72, 0x08, 0x93, 0x4e, 0x6a, 0x51, 0xa9, 0x4a, 0xa2, 0x73,
-	0xa9, 0x90, 0xa7, 0x94, 0xfa, 0x46, 0x96, 0x2d, 0x72, 0xa1, 0x97, 0x32, 0xd9, 0x36, 0xb5, 0xc8,
-	0xcb, 0xc5, 0x4c, 0x35, 0xd6, 0x0e, 0xd4, 0x54, 0x92, 0x27, 0xda, 0xd9, 0x90, 0x39, 0xa1, 0x3a,
-	0x9d, 0x22, 0x96, 0xae, 0x91, 0x96, 0xd5, 0x35, 0x8d, 0xf2, 0x67, 0x85, 0xa6, 0x51, 0xc1, 0x41,
-	0x60, 0x9c, 0xfb, 0x4f, 0x00, 0x00, 0x00, 0xff, 0xff, 0x21, 0x88, 0xd5, 0xea, 0xcc, 0x27, 0x00,
-	0x00,
+	// 3336 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xcc, 0x3a, 0xcd, 0x72, 0x1b, 0xc7,
+	0xd1, 0x04, 0x40, 0x80, 0x40, 0x83, 0x00, 0xc1, 0x21, 0x45, 0x42, 0xa0, 0x25, 0x51, 0x6b, 0xc9,
+	0x96, 0x64, 0x5b, 0x9f, 0xc5, 0x2f, 0xb1, 0x62, 0xd9, 0x92, 0x0d, 0x93, 0xb4, 0x43, 0x4b, 0x82,
+	0xe8, 0x85, 0xe4, 0xd8, 0xe5, 0xc3, 0x66, 0x85, 0x1d, 0x81, 0x2b, 0x01, 0xbb, 0xeb, 0xdd, 0x81,
+	0x2c, 0xe6, 0x92, 0x6b, 0x0e, 0x49, 0x55, 0xae, 0x39, 0x25, 0x87, 0x54, 0xb9, 0x92, 0xdc, 0x52,
+	0x95, 0xaa, 0xbc, 0x43, 0x2a, 0x0f, 0x90, 0x47, 0xc8, 0x2b, 0xe4, 0x94, 0x9a, 0xdf, 0x9d, 0xfd,
+	0xa3, 0x48, 0xd9, 0x15, 0xeb, 0xb6, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xdd, 0xd3, 0x7f, 0x3b, 0xd0,
+	0xb0, 0x03, 0xf7, 0x6a, 0x10, 0xfa, 0xc4, 0x47, 0x0b, 0xe1, 0xcc, 0x23, 0xee, 0x14, 0x1b, 0x57,
+	0xa0, 0xfd, 0x39, 0x0e, 0x23, 0xd7, 0xf7, 0x4c, 0xfc, 0xf5, 0x0c, 0x47, 0x04, 0x75, 0x61, 0xe1,
+	0x29, 0x87, 0x74, 0x4b, 0x9b, 0xa5, 0x4b, 0x0d, 0x53, 0x0e, 0x8d, 0x6f, 0x4b, 0xb0, 0xa4, 0x90,
+	0xa3, 0xc0, 0xf7, 0x22, 0x5c, 0x8c, 0x8d, 0xce, 0xc3, 0xa2, 0xd8, 0xc4, 0xf2, 0xec, 0x29, 0xee,
+	0x96, 0xd9, 0x74, 0x53, 0xc0, 0x06, 0xf6, 0x14, 0xa3, 0xd7, 0x61, 0x49, 0xa2, 0x48, 0x22, 0x15,
+	0x86, 0xd5, 0x16, 0x60, 0xb1, 0x1b, 0xba, 0x0a, 0x2b, 0x12, 0xd1, 0x0e, 0x5c, 0x85, 0x3c, 0xcf,
+	0x90, 0x97, 0xc5, 0x54, 0x3f, 0x70, 0x05, 0xbe, 0xf1, 0x15, 0x34, 0x76, 0x06, 0xc3, 0x6d, 0xdf,
+	0x7b, 0xe4, 0x8e, 0x29, 0x8b, 0x11, 0x0e, 0xe9, 0x9a, 0x6e, 0x69, 0xb3, 0x42, 0x59, 0x14, 0x43,
+	0xd4, 0x83, 0x7a, 0x84, 0xed, 0x70, 0x74, 0x80, 0xa3, 0x6e, 0x99, 0x4d, 0xa9, 0x31, 0x5d, 0xe5,
+	0x07, 0xc4, 0xf5, 0xbd, 0xa8, 0x5b, 0xe1, 0xab, 0xc4, 0xd0, 0xf8, 0x5d, 0x09, 0x9a, 0xfb, 0x7e,
+	0x48, 0xee, 0xda, 0x41, 0xe0, 0x7a, 0x63, 0xf4, 0x16, 0xd4, 0x99, 0x50, 0x47, 0xfe, 0x84, 0xc9,
+	0xa0, 0xbd, 0xb5, 0x7c, 0x55, 0xb0, 0x74, 0x75, 0x5f, 0x4c, 0x98, 0x0a, 0x05, 0x5d, 0x84, 0xf6,
+	0xc8, 0xf7, 0x88, 0xed, 0x7a, 0x38, 0xb4, 0x02, 0x3f, 0x24, 0x4c, 0x32, 0x55, 0xb3, 0xa5, 0xa0,
+	0x94, 0x38, 0xda, 0x80, 0xc6, 0x81, 0x1f, 0x11, 0x8e, 0x51, 0x61, 0x18, 0x75, 0x0a, 0x60, 0x93,
+	0xeb, 0xb0, 0xc0, 0x26, 0xdd, 0x40, 0xc8, 0xa0, 0x46, 0x87, 0x7b, 0x81, 0xf1, 0xdb, 0x12, 0x54,
+	0xef, 0xfa, 0x33, 0x8f, 0xa4, 0xb6, 0xb1, 0xc9, 0x81, 0xd0, 0x8f, 0xb6, 0x8d, 0x4d, 0x0e, 0xe2,
+	0x6d, 0x28, 0x06, 0x57, 0x11, 0xdf, 0x86, 0x4e, 0xf6, 0xa0, 0x1e, 0x62, 0xdb, 0xf1, 0xbd, 0xc9,
+	0x21, 0x63, 0xa1, 0x6e, 0xaa, 0x31, 0xd5, 0x5d, 0x84, 0x27, 0xae, 0x37, 0x7b, 0x66, 0x85, 0x78,
+	0x62, 0x3f, 0xc4, 0x13, 0xc6, 0x4a, 0xdd, 0x6c, 0x0b, 0xb0, 0xc9, 0xa1, 0xc6, 0x63, 0x58, 0xa2,
+	0xca, 0x8e, 0x02, 0x7b, 0x84, 0xef, 0x31, 0x11, 0x52, 0xd3, 0x60, 0x9b, 0x7a, 0x98, 0x7c, 0xe3,
+	0x87, 0x4f, 0x18, 0x67, 0x75, 0xb3, 0x49, 0x61, 0x03, 0x0e, 0x42, 0xa7, 0xa1, 0xce, 0xf9, 0x72,
+	0x1d, 0xc6, 0x56, 0xdd, 0x64, 0x27, 0xde, 0x77, 0x1d, 0x35, 0xe5, 0x06, 0x23, 0xc1, 0xd5, 0x02,
+	0x3f, 0xfd, 0xc8, 0xf8, 0x7d, 0x19, 0x36, 0xee, 0xd0, 0xcd, 0x87, 0xb6, 0xe7, 0x3c, 0xf4, 0x9f,
+	0x0d, 0xf1, 0x68, 0x16, 0xba, 0xe4, 0x70, 0xdb, 0xf7, 0x08, 0x7e, 0x46, 0xd0, 0x2e, 0x2c, 0x7b,
+	0x92, 0x17, 0x4b, 0xaa, 0x97, 0xee, 0xde, 0xdc, 0xea, 0x2a, 0x9d, 0xa5, 0xb8, 0x35, 0x3b, 0x5e,
+	0x12, 0x10, 0xa1, 0x0f, 0xe2, 0xb3, 0x4b, 0x22, 0x65, 0x46, 0x64, 0x4d, 0x11, 0x19, 0xee, 0x32,
+	0x3e, 0x04, 0x09, 0x29, 0x13, 0x49, 0xe0, 0x2c, 0xd0, 0x7b, 0x60, 0xd9, 0x91, 0x35, 0x8b, 0x70,
+	0x28, 0x8c, 0xbe, 0x11, 0xce, 0xbc, 0x7e, 0xf4, 0x20, 0xc2, 0x21, 0xbb, 0x18, 0x42, 0xd0, 0x56,
+	0xe8, 0xfb, 0xe4, 0x51, 0x24, 0x85, 0x2b, 0xc1, 0x26, 0x83, 0xa2, 0xff, 0x83, 0x95, 0x68, 0x16,
+	0x04, 0x13, 0x3c, 0xc5, 0x1e, 0xb1, 0x27, 0xd6, 0x38, 0xf4, 0x67, 0x41, 0xd4, 0xad, 0x6e, 0x56,
+	0x2e, 0x55, 0x4c, 0xa4, 0x4f, 0x7d, 0xc2, 0x66, 0x8c, 0xdf, 0x94, 0xe0, 0x14, 0xe3, 0x6c, 0xdf,
+	0x77, 0x84, 0x90, 0xc4, 0x35, 0x79, 0x15, 0x5a, 0x23, 0xb6, 0xdc, 0x0a, 0xec, 0x10, 0x7b, 0x44,
+	0xd8, 0xcb, 0x22, 0x07, 0xee, 0x33, 0x18, 0xba, 0x07, 0x9d, 0x48, 0xc8, 0xd4, 0x1a, 0x71, 0xa1,
+	0x8a, 0xa3, 0x5f, 0x50, 0x47, 0x3f, 0x42, 0x01, 0xe6, 0x52, 0x94, 0x04, 0x18, 0x21, 0xa0, 0x98,
+	0x93, 0xbb, 0x98, 0xd8, 0x8e, 0x4d, 0x6c, 0x84, 0x60, 0x9e, 0xf9, 0x0c, 0xce, 0x02, 0xfb, 0x46,
+	0x1d, 0xa8, 0xcc, 0x84, 0x31, 0x34, 0x4c, 0xfa, 0x89, 0x5e, 0x81, 0x86, 0x52, 0x8d, 0x94, 0xa1,
+	0x02, 0xd0, 0x0b, 0x6c, 0x13, 0x82, 0xa7, 0x01, 0x61, 0xb2, 0x6b, 0x99, 0x72, 0x68, 0xfc, 0x7d,
+	0x1e, 0x3a, 0x99, 0xe3, 0x5f, 0x87, 0xfa, 0x54, 0x6c, 0x2f, 0x2c, 0x62, 0x23, 0xbe, 0xc5, 0x19,
+	0x0e, 0x4d, 0x85, 0x4c, 0x2f, 0x09, 0x35, 0x3f, 0xcd, 0xc7, 0xa9, 0x31, 0x95, 0xe9, 0xc4, 0x1f,
+	0x5b, 0x8e, 0x1b, 0xe2, 0x11, 0xf1, 0xc3, 0x43, 0xc1, 0xe5, 0xe2, 0xc4, 0x1f, 0xef, 0x48, 0x18,
+	0xba, 0x06, 0xe0, 0x78, 0x11, 0x15, 0xe7, 0x23, 0x77, 0xcc, 0x78, 0x6d, 0x6e, 0x21, 0xb5, 0xb7,
+	0xf2, 0x63, 0x66, 0xc3, 0xf1, 0x22, 0xc1, 0xec, 0xbb, 0xd0, 0xa2, 0x7e, 0xc1, 0x9a, 0x72, 0x17,
+	0xc4, 0x15, 0xde, 0xdc, 0x5a, 0xd5, 0x38, 0x56, 0xfe, 0xc9, 0x5c, 0x0c, 0xe2, 0x41, 0x84, 0x6e,
+	0x42, 0x8d, 0xdd, 0xcb, 0xa8, 0x5b, 0x63, 0x6b, 0x2e, 0xe6, 0x9c, 0x92, 0xef, 0x72, 0xf5, 0x0e,
+	0xc3, 0xdb, 0xf5, 0x48, 0x78, 0x68, 0x8a, 0x45, 0xe8, 0x0e, 0x34, 0x6d, 0xcf, 0xf3, 0x89, 0xcd,
+	0xcd, 0x7e, 0x81, 0xd1, 0xb8, 0x52, 0x4c, 0xa3, 0x1f, 0x23, 0x73, 0x42, 0xfa, 0x72, 0xf4, 0x23,
+	0xa8, 0xb2, 0x7b, 0xd1, 0xad, 0xb3, 0x53, 0x9f, 0x4d, 0xda, 0x50, 0x9a, 0x98, 0xc9, 0x91, 0x7b,
+	0xef, 0x42, 0x53, 0x63, 0x8d, 0x1a, 0xc6, 0x13, 0x7c, 0x28, 0x6c, 0x85, 0x7e, 0xa2, 0x55, 0xa8,
+	0x3e, 0xb5, 0x27, 0x33, 0xa9, 0x0f, 0x3e, 0xb8, 0x51, 0xfe, 0x49, 0xa9, 0x77, 0x0b, 0x3a, 0x69,
+	0x8e, 0x4e, 0xb2, 0xde, 0xd8, 0x83, 0x55, 0x73, 0xe6, 0xc5, 0x8c, 0xc9, 0xa0, 0x79, 0x0d, 0x6a,
+	0x42, 0x7f, 0xdc, 0x76, 0x4e, 0x17, 0x4a, 0xc4, 0x14, 0x88, 0xc6, 0x4d, 0x38, 0x95, 0x22, 0x25,
+	0x42, 0xea, 0x05, 0x68, 0x07, 0xbe, 0x63, 0x45, 0x1c, 0x6c, 0xb9, 0x8e, 0xbc, 0x89, 0x81, 0xc2,
+	0xdd, 0x73, 0xe8, 0xf2, 0x21, 0xf1, 0x83, 0x2c, 0x2b, 0xc7, 0x5b, 0xde, 0x85, 0xb5, 0xf4, 0x72,
+	0xbe, 0xbd, 0xf1, 0x01, 0xac, 0x9b, 0x78, 0xea, 0x3f, 0xc5, 0x2f, 0x4a, 0xba, 0x07, 0xdd, 0x2c,
+	0x81, 0x98, 0x78, 0x0c, 0x1d, 0x12, 0x9b, 0xcc, 0xa2, 0x93, 0x11, 0xbf, 0xac, 0x13, 0x10, 0xc1,
+	0x82, 0xd3, 0x41, 0x6d, 0x28, 0xbb, 0x81, 0x58, 0x54, 0x76, 0x03, 0xe3, 0x4b, 0x68, 0x0c, 0x74,
+	0x6f, 0xa0, 0x47, 0x9b, 0x86, 0x29, 0x87, 0x68, 0x2b, 0x0e, 0xf4, 0xe5, 0xe7, 0x44, 0x02, 0x95,
+	0x02, 0xdc, 0xce, 0x38, 0x51, 0xc1, 0xc3, 0x16, 0x80, 0xf2, 0x40, 0x32, 0xb2, 0xa0, 0x2c, 0x3d,
+	0x53, 0xc3, 0x32, 0xfe, 0x98, 0x70, 0x47, 0xda, 0x61, 0x1c, 0x75, 0x18, 0x27, 0xe1, 0x9e, 0xca,
+	0x27, 0x71, 0x4f, 0x57, 0xa1, 0x1a, 0x11, 0x9b, 0x70, 0x07, 0xd9, 0xd6, 0x0e, 0x97, 0xdc, 0x12,
+	0x9b, 0x1c, 0x0d, 0x9d, 0x01, 0x18, 0x85, 0xd8, 0x26, 0xd8, 0xb1, 0x6c, 0xee, 0x39, 0x2b, 0x66,
+	0x43, 0x40, 0xfa, 0x04, 0xdd, 0x88, 0xe5, 0x58, 0x65, 0x6c, 0x6c, 0xe6, 0x10, 0x4c, 0xe8, 0x25,
+	0x96, 0xb4, 0xba, 0xed, 0xb5, 0xa3, 0x6f, 0xbb, 0x58, 0xc7, 0x91, 0x35, 0x87, 0xb5, 0x50, 0xe8,
+	0xb0, 0xf8, 0x8a, 0xe3, 0x38, 0xac, 0x7a, 0xa1, 0xc3, 0x12, 0x34, 0x8e, 0x74, 0x58, 0x3f, 0xa4,
+	0xeb, 0xb9, 0x0b, 0xdd, 0xec, 0xd5, 0x11, 0x2e, 0xe3, 0x1a, 0xd4, 0x22, 0x06, 0x39, 0xc2, 0xfd,
+	0x88, 0x25, 0x02, 0xd1, 0xf8, 0x77, 0x49, 0xb7, 0xba, 0x8f, 0xdd, 0x09, 0xc1, 0x61, 0xc6, 0xea,
+	0x94, 0xf1, 0x94, 0x8f, 0x67, 0x3c, 0x43, 0x68, 0x33, 0xb1, 0x5b, 0x11, 0x9e, 0xb0, 0xe8, 0xc6,
+	0x72, 0xe7, 0xe6, 0xd6, 0x9b, 0x39, 0x0b, 0xf9, 0x96, 0x5c, 0x67, 0x43, 0x81, 0xce, 0x25, 0xde,
+	0x9a, 0xe8, 0xb0, 0xde, 0x87, 0x80, 0xb2, 0x48, 0x27, 0x12, 0xdd, 0xa7, 0xf4, 0xba, 0xd2, 0xd4,
+	0x39, 0xc7, 0x6d, 0x3f, 0x62, 0x6c, 0x1c, 0x21, 0x37, 0xce, 0xa7, 0x29, 0x10, 0x8d, 0x3f, 0x54,
+	0x00, 0xe2, 0xc9, 0x97, 0xf6, 0x9e, 0x5e, 0x57, 0xb7, 0x86, 0xa7, 0x06, 0xe7, 0x72, 0xe8, 0xe5,
+	0xde, 0x97, 0x8f, 0x93, 0xf7, 0x85, 0x27, 0x09, 0x17, 0xf2, 0x56, 0xbf, 0xb4, 0x37, 0x65, 0x1b,
+	0xd6, 0xd2, 0xea, 0x16, 0xf7, 0xe4, 0x32, 0x54, 0x5d, 0x82, 0xa7, 0xbc, 0x10, 0x6c, 0x6e, 0xad,
+	0xe4, 0x1c, 0xcb, 0xe4, 0x18, 0xc6, 0x79, 0x68, 0xec, 0x4d, 0xed, 0x31, 0x1e, 0x06, 0x78, 0x44,
+	0xf7, 0x72, 0xe9, 0x40, 0xec, 0xcf, 0x07, 0xc6, 0x16, 0xd4, 0x6f, 0xe3, 0xc3, 0xcf, 0xe9, 0xbe,
+	0xc7, 0xe5, 0xcf, 0xf8, 0x47, 0x09, 0xd6, 0x99, 0xbb, 0xdb, 0x96, 0x65, 0x98, 0x89, 0x23, 0x7f,
+	0x16, 0x8e, 0x70, 0xc4, 0x54, 0x1a, 0xcc, 0xac, 0x00, 0x87, 0xae, 0xcf, 0x6d, 0x8a, 0xaa, 0x34,
+	0x98, 0xed, 0x33, 0x00, 0x2d, 0xd5, 0xe8, 0xf4, 0xd7, 0x33, 0x5f, 0xd8, 0x56, 0xc5, 0xac, 0x8f,
+	0x82, 0xd9, 0x67, 0x74, 0x2c, 0xd7, 0x46, 0x07, 0x76, 0x88, 0x23, 0x66, 0x43, 0x7c, 0xed, 0x90,
+	0x01, 0xd0, 0x35, 0x38, 0x35, 0xc5, 0x53, 0x3f, 0x3c, 0xb4, 0x26, 0xee, 0xd4, 0x25, 0x96, 0xeb,
+	0x59, 0x0f, 0x0f, 0x09, 0x8e, 0x84, 0xe1, 0x20, 0x3e, 0x79, 0x87, 0xce, 0xed, 0x79, 0x1f, 0xd1,
+	0x19, 0x64, 0x40, 0xcb, 0xf7, 0xa7, 0x56, 0x34, 0xf2, 0x43, 0x6c, 0xd9, 0xce, 0x63, 0xe6, 0xef,
+	0x2b, 0x66, 0xd3, 0xf7, 0xa7, 0x43, 0x0a, 0xeb, 0x3b, 0x8f, 0x0d, 0x1b, 0x5a, 0x89, 0x42, 0x87,
+	0x26, 0xee, 0xac, 0xa2, 0x11, 0x89, 0x3b, 0xfd, 0xa6, 0xb0, 0xd0, 0x9f, 0x48, 0x39, 0xb0, 0x6f,
+	0x0a, 0x23, 0x87, 0x81, 0xcc, 0xda, 0xd9, 0x37, 0x15, 0xd8, 0x04, 0x3f, 0x15, 0x75, 0x64, 0xc3,
+	0xe4, 0x03, 0xc3, 0x01, 0xd8, 0xb6, 0x03, 0xfb, 0xa1, 0x3b, 0x71, 0xc9, 0x21, 0xba, 0x0c, 0x1d,
+	0xdb, 0x71, 0xac, 0x91, 0x84, 0xb8, 0x58, 0x16, 0xf5, 0x4b, 0xb6, 0xe3, 0x6c, 0x6b, 0x60, 0xf4,
+	0x06, 0x2c, 0x3b, 0xa1, 0x1f, 0x24, 0x71, 0x79, 0x95, 0xdf, 0xa1, 0x13, 0x3a, 0xb2, 0xf1, 0x9f,
+	0x32, 0x9c, 0x49, 0xaa, 0x25, 0x5d, 0x3a, 0x5e, 0x87, 0xc5, 0xd4, 0xae, 0xa5, 0x84, 0x05, 0xc5,
+	0x4c, 0x9a, 0x09, 0x44, 0x74, 0x16, 0x20, 0x08, 0xdd, 0xa7, 0xee, 0x04, 0x8f, 0xb1, 0xac, 0x65,
+	0x35, 0x48, 0x7e, 0x4d, 0x5a, 0xf9, 0x3e, 0x6a, 0xd2, 0xf9, 0xef, 0x52, 0x93, 0x56, 0x8f, 0x51,
+	0x93, 0xd6, 0x4e, 0x52, 0x93, 0x2e, 0x14, 0xd6, 0xa4, 0x7f, 0x2a, 0xc1, 0x6a, 0x52, 0xf8, 0xa2,
+	0xcc, 0xb9, 0x05, 0x8d, 0x50, 0xde, 0x0e, 0x21, 0xf0, 0xcd, 0x64, 0xd2, 0x90, 0xbd, 0x45, 0x66,
+	0xbc, 0x04, 0x7d, 0x56, 0x58, 0xad, 0xbe, 0x56, 0x40, 0xe6, 0xb9, 0xf5, 0x6a, 0x1f, 0x96, 0x15,
+	0xf2, 0x91, 0xe5, 0xaa, 0x56, 0x7e, 0x96, 0x93, 0xe5, 0xa7, 0x07, 0xb5, 0x1d, 0xfc, 0xd4, 0x1d,
+	0xe1, 0xef, 0xa5, 0x47, 0xb3, 0x09, 0xcd, 0x00, 0x87, 0x53, 0x37, 0x8a, 0x94, 0xe1, 0x34, 0x4c,
+	0x1d, 0x64, 0xfc, 0xab, 0x0a, 0x4b, 0x69, 0xc9, 0xbe, 0x93, 0xa9, 0x76, 0x7b, 0xb1, 0x25, 0xa7,
+	0xcf, 0xa7, 0x45, 0xa9, 0x4b, 0xd2, 0x11, 0x96, 0x53, 0xa9, 0xad, 0xf2, 0x95, 0xc2, 0x39, 0xd2,
+	0xf3, 0x8f, 0xfc, 0xe9, 0xd4, 0xf6, 0x1c, 0xd9, 0x3f, 0x13, 0x43, 0x2a, 0x2d, 0x3b, 0x1c, 0x53,
+	0xf3, 0xa4, 0x60, 0xf6, 0x8d, 0xce, 0x41, 0x93, 0xa6, 0x88, 0xae, 0xc7, 0x8a, 0x65, 0x61, 0x7c,
+	0x20, 0x40, 0x3b, 0x6e, 0x88, 0x2e, 0xc2, 0x3c, 0xf6, 0x9e, 0xca, 0x78, 0x14, 0x37, 0xd8, 0xa4,
+	0x03, 0x36, 0xd9, 0x34, 0x7a, 0x0d, 0x6a, 0x53, 0x7f, 0xe6, 0x11, 0x99, 0x2c, 0xb6, 0x15, 0x22,
+	0xeb, 0x8a, 0x99, 0x62, 0x16, 0x5d, 0x86, 0x05, 0x87, 0xe9, 0x40, 0x66, 0x84, 0x4b, 0x71, 0xc1,
+	0xcd, 0xe0, 0xa6, 0x9c, 0x47, 0xef, 0xab, 0x48, 0xda, 0x48, 0xc5, 0xc2, 0x94, 0x50, 0x73, 0xc3,
+	0xe9, 0xed, 0x64, 0x38, 0x05, 0x46, 0xe2, 0x72, 0x21, 0x89, 0xa3, 0xcb, 0xe5, 0xd3, 0x50, 0x9f,
+	0xf8, 0x63, 0x6e, 0x07, 0x4d, 0x5e, 0xc5, 0x4c, 0xfc, 0x31, 0x33, 0x83, 0x55, 0x9a, 0x3e, 0x38,
+	0xae, 0xd7, 0x5d, 0x64, 0x77, 0x92, 0x0f, 0x68, 0x54, 0x60, 0x1f, 0x96, 0xef, 0x8d, 0x70, 0xb7,
+	0xc5, 0xa6, 0x1a, 0x0c, 0x72, 0xcf, 0x1b, 0xb1, 0xa0, 0x45, 0xc8, 0x61, 0xb7, 0xcd, 0xe0, 0xf4,
+	0x13, 0xfd, 0xbf, 0x4c, 0xd1, 0x97, 0x98, 0x7e, 0xcf, 0x14, 0x5c, 0x93, 0x97, 0xa6, 0x1e, 0xff,
+	0x6b, 0x09, 0xd6, 0xb6, 0x59, 0xd2, 0xa3, 0x79, 0x82, 0x13, 0xd4, 0x93, 0xe8, 0x6d, 0x55, 0xb8,
+	0xa7, 0x8b, 0xbf, 0xf4, 0x61, 0x05, 0x1e, 0xfa, 0x10, 0xda, 0x92, 0xa6, 0x58, 0x59, 0x79, 0x5e,
+	0xc9, 0xdf, 0x8a, 0xf4, 0xa1, 0xf1, 0x3e, 0xac, 0x67, 0x78, 0x16, 0x09, 0xca, 0x79, 0x58, 0x8c,
+	0x3d, 0x82, 0x62, 0xb9, 0xa9, 0x60, 0x7b, 0x8e, 0x71, 0x83, 0x16, 0xfe, 0x76, 0x48, 0x32, 0x07,
+	0x3e, 0xc6, 0x5a, 0x56, 0xf5, 0x27, 0xd7, 0x8a, 0xc2, 0x7c, 0x08, 0xab, 0x43, 0xe2, 0x07, 0x2f,
+	0x40, 0x94, 0xde, 0x74, 0x7a, 0x6c, 0x7f, 0x46, 0x44, 0x56, 0x22, 0x87, 0xc6, 0x3a, 0xef, 0x51,
+	0x64, 0x77, 0x7b, 0x0f, 0xd6, 0x78, 0x8b, 0xe0, 0x45, 0x0e, 0x71, 0x5a, 0x36, 0x28, 0xb2, 0x74,
+	0x7f, 0x5d, 0xd6, 0x5c, 0x5d, 0x41, 0x4d, 0xf3, 0x56, 0xb2, 0xa6, 0x59, 0xcf, 0x2a, 0x3c, 0x91,
+	0x67, 0x67, 0xcd, 0xa8, 0x92, 0x63, 0x46, 0x66, 0xa6, 0xf0, 0x99, 0x67, 0x37, 0xfd, 0x8d, 0x2c,
+	0xf5, 0xff, 0x61, 0xdd, 0xb3, 0xc7, 0xeb, 0x1e, 0xb5, 0xb5, 0xea, 0xb5, 0xbc, 0x9d, 0xaa, 0x7b,
+	0xba, 0x45, 0x6c, 0xaa, 0xb2, 0xe7, 0x57, 0xf3, 0xd0, 0x50, 0x73, 0x19, 0x99, 0x66, 0x85, 0x54,
+	0xce, 0x11, 0x92, 0x1e, 0x74, 0x2a, 0x2f, 0x12, 0x74, 0xe6, 0x9f, 0x17, 0x74, 0x36, 0xa0, 0xc1,
+	0x3e, 0xac, 0x10, 0x3f, 0x12, 0x41, 0xa4, 0xce, 0x00, 0x26, 0x7e, 0x14, 0x2b, 0xbe, 0x76, 0x2c,
+	0xc5, 0x27, 0x0b, 0xac, 0x85, 0x74, 0x81, 0xf5, 0x8e, 0x0a, 0x0b, 0x3c, 0x80, 0x9c, 0xcd, 0x92,
+	0xcb, 0x0d, 0x08, 0xbb, 0xc9, 0x80, 0xc0, 0x63, 0xca, 0xab, 0x39, 0x8b, 0x5f, 0xda, 0xf2, 0xea,
+	0x0e, 0x2f, 0xaf, 0x74, 0xab, 0x12, 0xde, 0x6b, 0x0b, 0x40, 0x5d, 0x54, 0x59, 0x63, 0xa1, 0xec,
+	0xd1, 0x4c, 0x0d, 0x8b, 0xba, 0x82, 0x84, 0xfc, 0xe3, 0x86, 0xe0, 0x31, 0x5c, 0xc1, 0x5f, 0xf4,
+	0xd4, 0xa6, 0xa0, 0x73, 0xf6, 0x4e, 0xa6, 0x22, 0x3f, 0x9e, 0xd5, 0xbd, 0x95, 0x2c, 0xc8, 0x4f,
+	0x66, 0x2e, 0x99, 0x7a, 0x9c, 0x45, 0x62, 0x3b, 0x14, 0xd3, 0xbc, 0x94, 0x6a, 0x08, 0x48, 0x9f,
+	0xd0, 0xfc, 0xe7, 0x91, 0xeb, 0xb9, 0xd1, 0x01, 0x9f, 0xaf, 0xb1, 0x79, 0x90, 0xa0, 0x3e, 0xfb,
+	0x1d, 0x88, 0x9f, 0xb9, 0xc4, 0x1a, 0xf9, 0x0e, 0x66, 0xc6, 0x58, 0x35, 0xeb, 0x14, 0xb0, 0xed,
+	0x3b, 0x38, 0xbe, 0x20, 0xf5, 0x13, 0x5d, 0x90, 0x46, 0xea, 0x82, 0xac, 0x41, 0x2d, 0xc4, 0x76,
+	0xe4, 0x7b, 0x5d, 0xe0, 0x3f, 0x15, 0xf9, 0x88, 0x3a, 0xf8, 0x29, 0x8e, 0x22, 0xba, 0x81, 0xc8,
+	0x3a, 0xc4, 0x50, 0xcb, 0x8d, 0x16, 0x8b, 0x72, 0xa3, 0x23, 0x5a, 0x73, 0xa9, 0xdc, 0xa8, 0x55,
+	0x94, 0x1b, 0x1d, 0xa7, 0x33, 0xa7, 0x65, 0x7e, 0xed, 0xa3, 0x32, 0xbf, 0x1f, 0xf2, 0xe2, 0xdc,
+	0x86, 0xf5, 0x8c, 0xa9, 0x8b, 0x9b, 0xf3, 0x76, 0xaa, 0x81, 0xd7, 0x2d, 0x92, 0x82, 0xea, 0xdf,
+	0xfd, 0x1c, 0x96, 0x76, 0x9f, 0xe1, 0xd1, 0xf0, 0xd0, 0x1b, 0x9d, 0x20, 0x56, 0x77, 0xa0, 0x32,
+	0x9a, 0x3a, 0xa2, 0x0c, 0xa6, 0x9f, 0x7a, 0xf4, 0xae, 0x24, 0xa3, 0xb7, 0x05, 0x9d, 0x78, 0x07,
+	0xc1, 0xe7, 0x1a, 0xe5, 0xd3, 0xa1, 0xc8, 0x94, 0xf8, 0xa2, 0x29, 0x46, 0x02, 0x8e, 0xc3, 0x90,
+	0x9d, 0x9a, 0xc3, 0x71, 0x18, 0x26, 0xcd, 0xb6, 0x92, 0x34, 0x5b, 0xe3, 0x31, 0x34, 0xe9, 0x06,
+	0xdf, 0x89, 0x7d, 0x91, 0xc2, 0x56, 0xe2, 0x14, 0x56, 0x65, 0xc2, 0xf3, 0x5a, 0x26, 0x6c, 0x6c,
+	0xc2, 0x22, 0xdf, 0x4b, 0x1c, 0xa4, 0x03, 0x95, 0x59, 0x38, 0x91, 0x7a, 0x9b, 0x85, 0x13, 0xe3,
+	0xa7, 0xd0, 0xea, 0x13, 0x62, 0x8f, 0x0e, 0x4e, 0xc0, 0x8f, 0xda, 0xab, 0xac, 0xef, 0x65, 0x40,
+	0x5b, 0x52, 0x2a, 0xdc, 0x6d, 0x00, 0x68, 0xdf, 0x0f, 0xc9, 0xc7, 0x7e, 0xf8, 0x8d, 0x1d, 0x3a,
+	0x27, 0xcb, 0x59, 0x11, 0xcc, 0x8b, 0x77, 0x03, 0x95, 0x4b, 0x55, 0x93, 0x7d, 0x1b, 0xaf, 0xc3,
+	0x4a, 0x82, 0x5e, 0xe1, 0xc6, 0xd7, 0xa1, 0xc9, 0xbc, 0x82, 0xc8, 0x8e, 0x2e, 0xe9, 0x9d, 0xad,
+	0xa3, 0x5c, 0x07, 0xad, 0x7c, 0xa9, 0xdb, 0x67, 0x70, 0xe5, 0xa3, 0xdf, 0x4c, 0x25, 0x12, 0xab,
+	0xc9, 0xf5, 0xa9, 0x24, 0xe2, 0x97, 0x50, 0x65, 0xe0, 0x8c, 0x8f, 0xde, 0xa0, 0x85, 0x7e, 0xe0,
+	0x5b, 0xc4, 0x1e, 0xab, 0x97, 0x18, 0x14, 0x70, 0xdf, 0x1e, 0x47, 0xec, 0x21, 0x09, 0x9d, 0x74,
+	0xdc, 0x31, 0x8e, 0x88, 0x7c, 0x8e, 0xd1, 0xa4, 0xb0, 0x1d, 0x0e, 0xa2, 0x12, 0x89, 0xdc, 0x5f,
+	0xf0, 0x04, 0x61, 0xde, 0x64, 0xdf, 0xaa, 0x15, 0x55, 0x8d, 0x5b, 0x51, 0xc6, 0xfb, 0x80, 0xf4,
+	0x33, 0x08, 0x21, 0xbd, 0x06, 0x35, 0x76, 0x44, 0x19, 0xb2, 0xda, 0xc9, 0x43, 0x98, 0x62, 0xd6,
+	0xb8, 0x05, 0x88, 0x4b, 0x25, 0x11, 0xa6, 0x8e, 0x2f, 0xc1, 0xf7, 0x60, 0x25, 0xb1, 0x5e, 0xfd,
+	0xef, 0x4b, 0x10, 0x48, 0xef, 0x2e, 0x16, 0xff, 0xb3, 0x04, 0xd0, 0x9f, 0x91, 0x03, 0x51, 0xc0,
+	0xf7, 0xa0, 0x4e, 0x4f, 0xa4, 0xb5, 0x1d, 0xd4, 0x98, 0xce, 0x05, 0x76, 0x14, 0x7d, 0xe3, 0x87,
+	0x32, 0x0f, 0x53, 0x63, 0x56, 0x7c, 0xcf, 0xc8, 0x81, 0x6c, 0xbc, 0xd1, 0x6f, 0x74, 0x11, 0xda,
+	0xfc, 0x45, 0x8c, 0x65, 0x3b, 0x4e, 0x88, 0xa3, 0x48, 0x74, 0xe0, 0x5a, 0x1c, 0xda, 0xe7, 0x40,
+	0x8a, 0xe6, 0x3a, 0xd8, 0x23, 0x2e, 0x39, 0xb4, 0x88, 0xff, 0x04, 0x7b, 0x42, 0xb4, 0x2d, 0x09,
+	0xbd, 0x4f, 0x81, 0x14, 0x2d, 0xc4, 0x63, 0x37, 0x22, 0xa1, 0x44, 0xab, 0x71, 0x34, 0x09, 0x65,
+	0x68, 0xc6, 0xb7, 0x25, 0xe8, 0xec, 0xcf, 0x26, 0x13, 0x7e, 0xc8, 0x93, 0xca, 0x12, 0xbd, 0x2e,
+	0xce, 0x51, 0x4e, 0xb5, 0xe1, 0x62, 0x11, 0x89, 0xc3, 0x7d, 0xf7, 0x72, 0x6d, 0x05, 0x96, 0x35,
+	0x46, 0x45, 0xa5, 0x71, 0x0b, 0x10, 0x2f, 0x42, 0x5e, 0x8c, 0x7f, 0xe3, 0x14, 0xac, 0x24, 0xd6,
+	0x0b, 0xb2, 0x57, 0xa0, 0x25, 0x7e, 0x9e, 0x09, 0x3d, 0x9f, 0x86, 0x3a, 0xf5, 0x08, 0x23, 0xd7,
+	0x91, 0x4d, 0xd5, 0x85, 0xc0, 0x77, 0xb6, 0x5d, 0x27, 0x34, 0x06, 0xd0, 0x32, 0x39, 0x79, 0x81,
+	0x7b, 0x13, 0xda, 0xe2, 0x57, 0x9b, 0x95, 0xf8, 0x19, 0x1d, 0x77, 0x00, 0x13, 0xb4, 0xcd, 0x96,
+	0xa7, 0x0f, 0x8d, 0xaf, 0xa0, 0xf7, 0x20, 0x70, 0x68, 0x4a, 0xa3, 0x53, 0x95, 0x47, 0xbb, 0x09,
+	0xf2, 0x51, 0x56, 0x11, 0xf1, 0xe4, 0xb2, 0x56, 0xa8, 0x0f, 0x8d, 0x33, 0xb0, 0x91, 0x4b, 0x5c,
+	0x9c, 0x3b, 0x80, 0x4e, 0x3c, 0xe1, 0xb8, 0xb2, 0x97, 0xcc, 0x7a, 0xc4, 0x25, 0xad, 0x47, 0xbc,
+	0xa6, 0xe2, 0x24, 0xf7, 0xb8, 0x62, 0xa4, 0xa5, 0x2e, 0x95, 0xa2, 0xd4, 0x65, 0x3e, 0x91, 0xba,
+	0x18, 0x9f, 0x2a, 0xe9, 0x89, 0xbc, 0xf1, 0x5d, 0x96, 0xbc, 0xf2, 0xbd, 0xa5, 0x27, 0x38, 0x9d,
+	0x73, 0x38, 0x8e, 0x61, 0x6a, 0xc8, 0xc6, 0x12, 0xb4, 0x12, 0x3e, 0xc1, 0xf8, 0x10, 0xda, 0xa9,
+	0x4b, 0x7e, 0x35, 0x15, 0xe0, 0x33, 0x62, 0x4b, 0x86, 0xf7, 0x2b, 0xaf, 0x40, 0x5d, 0xbe, 0x1d,
+	0x43, 0x0b, 0x50, 0xb9, 0xbf, 0xbd, 0xdf, 0x99, 0xa3, 0x1f, 0x0f, 0x76, 0xf6, 0x3b, 0xa5, 0x2b,
+	0x37, 0x60, 0x29, 0xf5, 0x5b, 0x08, 0x2d, 0x43, 0x6b, 0xd8, 0x1f, 0xec, 0x7c, 0x74, 0xef, 0x0b,
+	0xcb, 0xdc, 0xed, 0xef, 0x7c, 0xd9, 0x99, 0x43, 0xab, 0xd0, 0x91, 0xa0, 0xc1, 0xbd, 0xfb, 0x1c,
+	0x5a, 0xba, 0xf2, 0x04, 0xda, 0xc9, 0x0c, 0x16, 0x9d, 0x82, 0xe5, 0xed, 0x7b, 0x83, 0xfb, 0xfd,
+	0xbd, 0xc1, 0xae, 0x69, 0x6d, 0x9b, 0xbb, 0xfd, 0xfb, 0xbb, 0x3b, 0x9d, 0xb9, 0x24, 0xd8, 0x7c,
+	0x30, 0x18, 0xec, 0x0d, 0x3e, 0xe9, 0x94, 0x28, 0xd5, 0x18, 0xbc, 0xfb, 0xc5, 0x1e, 0x45, 0x2e,
+	0x27, 0x91, 0x1f, 0x0c, 0x6e, 0x0f, 0xee, 0xfd, 0x6c, 0xd0, 0xa9, 0x6c, 0xfd, 0xb9, 0x09, 0x6d,
+	0x79, 0x40, 0x1c, 0xb2, 0xa6, 0xe7, 0x2d, 0x58, 0x90, 0xcf, 0xfa, 0xe2, 0x9c, 0x3a, 0xf9, 0x06,
+	0xb1, 0xd7, 0xcd, 0x4e, 0x08, 0x43, 0x99, 0x43, 0xfb, 0x4c, 0x71, 0xda, 0x2f, 0xb8, 0x33, 0xba,
+	0x28, 0x33, 0xff, 0xf8, 0x7a, 0x67, 0x8b, 0xa6, 0x15, 0xc5, 0x21, 0xd5, 0x96, 0xfe, 0x16, 0x02,
+	0xc5, 0x6b, 0x72, 0xdf, 0x58, 0xf4, 0xce, 0x15, 0xce, 0x2b, 0xa2, 0x5f, 0x42, 0x27, 0xfd, 0x0a,
+	0x02, 0xc5, 0xcd, 0xeb, 0x82, 0x17, 0x16, 0xbd, 0xf3, 0x47, 0x60, 0xe8, 0xa4, 0x33, 0xef, 0x05,
+	0x36, 0x8b, 0xff, 0xf8, 0x66, 0x48, 0x17, 0xfd, 0x46, 0xe6, 0xa2, 0x48, 0xfe, 0x3a, 0x43, 0xfa,
+	0x5f, 0xfa, 0x9c, 0x5f, 0xa8, 0x9a, 0x28, 0xf2, 0xff, 0xb9, 0x19, 0x73, 0xe8, 0x73, 0x58, 0x4a,
+	0xf5, 0xbb, 0x50, 0xbc, 0x2a, 0xbf, 0x7b, 0xd7, 0xdb, 0x2c, 0x46, 0x48, 0xea, 0x4d, 0xef, 0x66,
+	0x25, 0xf4, 0x96, 0xd3, 0x22, 0x4b, 0xe8, 0x2d, 0xb7, 0x0d, 0xc6, 0xcc, 0x2b, 0xd1, 0xb3, 0xd2,
+	0xcc, 0x2b, 0xaf, 0x41, 0xd6, 0x3b, 0x5b, 0x34, 0xad, 0x1f, 0x3f, 0xd5, 0xaf, 0xd2, 0x8e, 0x9f,
+	0xdf, 0x06, 0xeb, 0x6d, 0x16, 0x23, 0xa4, 0x75, 0x15, 0xd7, 0xe1, 0x29, 0x5d, 0x65, 0xda, 0x3e,
+	0x29, 0x5d, 0x65, 0x0b, 0x78, 0xa1, 0xab, 0x54, 0x41, 0x7d, 0xae, 0xb0, 0x16, 0xc9, 0xea, 0x2a,
+	0xbf, 0xbc, 0x31, 0xe6, 0x50, 0x1f, 0xea, 0xb2, 0x98, 0x40, 0xf1, 0xed, 0x4e, 0x55, 0x30, 0xbd,
+	0xd3, 0x39, 0x33, 0x8a, 0xc4, 0x8f, 0x61, 0x9e, 0x42, 0xd1, 0x6a, 0x02, 0x49, 0x2e, 0x3d, 0x95,
+	0x82, 0xaa, 0x65, 0xef, 0x41, 0x8d, 0x67, 0xe3, 0x28, 0xf6, 0xb9, 0x89, 0x44, 0xbf, 0xb7, 0x9e,
+	0x81, 0xab, 0xc5, 0x9f, 0xf2, 0xa7, 0xbe, 0x22, 0xad, 0x46, 0x1b, 0x89, 0x07, 0x76, 0xc9, 0xe4,
+	0xbd, 0xf7, 0x4a, 0xfe, 0xa4, 0xa2, 0xf5, 0x10, 0x56, 0x72, 0x42, 0x20, 0x8a, 0x7b, 0x3f, 0xc5,
+	0xd1, 0xb7, 0x77, 0xe1, 0x68, 0x24, 0xfd, 0xb0, 0x42, 0x6b, 0x6b, 0xba, 0xa9, 0x6b, 0xca, 0x5a,
+	0xcf, 0xc0, 0xe5, 0xe2, 0xad, 0xbf, 0x95, 0x61, 0x91, 0x27, 0x2a, 0xc2, 0x55, 0x7f, 0x02, 0x10,
+	0xa7, 0xcb, 0xa8, 0x97, 0xb0, 0x9e, 0x44, 0x1d, 0xd0, 0xdb, 0xc8, 0x9d, 0xd3, 0xc5, 0xa8, 0x65,
+	0xbe, 0x9a, 0x18, 0xb3, 0xf9, 0xb4, 0x26, 0xc6, 0x9c, 0x64, 0xd9, 0x98, 0x43, 0x3b, 0xd0, 0x50,
+	0xe9, 0x18, 0xd2, 0xb2, 0xb8, 0x54, 0x2e, 0xd9, 0xeb, 0xe5, 0x4d, 0xe9, 0x1c, 0x69, 0xf9, 0x97,
+	0xc6, 0x51, 0x36, 0xab, 0xd3, 0x38, 0xca, 0x4b, 0xd9, 0xe6, 0xfe, 0x1b, 0x00, 0x00, 0xff, 0xff,
+	0xce, 0x7b, 0x46, 0x5c, 0x58, 0x2f, 0x00, 0x00,
 }

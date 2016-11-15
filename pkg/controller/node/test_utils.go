@@ -27,7 +27,7 @@ import (
 	"k8s.io/kubernetes/pkg/api/resource"
 	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/fake"
-	unversionedcore "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/core/unversioned"
+	unversionedcore "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/core/internalversion"
 	"k8s.io/kubernetes/pkg/runtime"
 	"k8s.io/kubernetes/pkg/util/clock"
 	utilnode "k8s.io/kubernetes/pkg/util/node"
@@ -202,7 +202,7 @@ func (m *FakeNodeHandler) PatchStatus(nodeName string, data []byte) (*api.Node, 
 }
 
 func (m *FakeNodeHandler) Watch(opts api.ListOptions) (watch.Interface, error) {
-	return nil, nil
+	return watch.NewFake(), nil
 }
 
 func (m *FakeNodeHandler) Patch(name string, pt api.PatchType, data []byte, subresources ...string) (*api.Node, error) {
