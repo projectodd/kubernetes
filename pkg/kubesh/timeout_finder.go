@@ -32,6 +32,10 @@ type resourcesError struct {
 func (tf TimeoutFinder) Lookup(args []string) ([]Resource, error) {
 	cr := make(chan resourcesError, 1)
 	go func() {
+		defer func() {
+			// Ignore any panics from the delegate
+			recover()
+		}()
 		resources, err := tf.Delegate.Lookup(args)
 		cr <- resourcesError{resources, err}
 	}()
