@@ -45,8 +45,8 @@ type kubesh struct {
 func NewKubesh() *kubesh {
 	factory := cmdutil.NewFactory(nil)
 	sh := kubesh{
-		factory:  factory,
-		finder:   TimeoutFinder{Resourceful{factory}, time.Second * 2},
+		factory:  &factory,
+		finder:   TimeoutFinder{Resourceful{&factory}, time.Second * 2},
 		progname: os.Args[0],
 		out:      &NewlineEnsuringWriter{delegate: os.Stdout},
 	}
@@ -133,7 +133,7 @@ func (sh *kubesh) runExec(args []string) {
 }
 
 func (sh *kubesh) newRootCommand() *cobra.Command {
-	root := cmd.NewKubectlCommand(sh.factory, os.Stdin, sh.out, os.Stderr)
+	root := cmd.NewKubectlCommand(*sh.factory, os.Stdin, sh.out, os.Stderr)
 	get, _, err := root.Find([]string{"get"})
 	if err != nil {
 		panic(err)

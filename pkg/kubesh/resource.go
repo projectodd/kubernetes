@@ -37,7 +37,7 @@ type ResourceFinder interface {
 }
 
 func (rf Resourceful) Lookup(args []string) ([]Resource, error) {
-	f := rf.Factory
+	f := *rf.Factory
 	cmdNamespace, _, err := f.DefaultNamespace()
 	if err != nil {
 
