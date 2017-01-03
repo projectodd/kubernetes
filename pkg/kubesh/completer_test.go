@@ -74,7 +74,7 @@ func (f TestFinder) Lookup(args []string) ([]kubesh.Resource, error) {
 	t := args[0]
 	result := make([]kubesh.Resource, 0, len(f[t]))
 	for _, name := range f[t] {
-		result = append(result, kubesh.Resource{t, name})
+		result = append(result, kubesh.Resource{Type: t, Name: name})
 	}
 	return result, nil
 }
