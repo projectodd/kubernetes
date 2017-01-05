@@ -50,5 +50,4 @@ func TestReuseCommand(t *testing.T) {
 	if get.Flags().Lookup("show-all").Changed {
 		t.Error("Should not be set yet")
 	}
-	get.DebugFlags()
 }

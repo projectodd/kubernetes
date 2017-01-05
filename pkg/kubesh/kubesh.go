@@ -38,12 +38,14 @@ type kubesh struct {
 	context    []string
 	lineReader *readline.Instance
 	progname   string
+	factory    *cmdutil.Factory
 	out        *NewlineEnsuringWriter
 }
 
 func NewKubesh() *kubesh {
 	factory := cmdutil.NewFactory(nil)
 	sh := kubesh{
+		factory:  &factory,
 		finder:   TimeoutFinder{Resourceful{&factory}, time.Second * 2},
 		progname: os.Args[0],
 		out:      &NewlineEnsuringWriter{delegate: os.Stdout},
@@ -131,18 +133,11 @@ func (sh *kubesh) runExec(args []string) {
 }
 
 func (sh *kubesh) newRootCommand() *cobra.Command {
-	root := cmd.NewKubectlCommand(cmdutil.NewFactory(nil), os.Stdin, sh.out, os.Stderr)
+	root := cmd.NewKubectlCommand(*sh.factory, os.Stdin, sh.out, os.Stderr)
 	get, _, err := root.Find([]string{"get"})
 	if err != nil {
 		panic(err)
 	}
-
-	user, err := root.Flags().GetString("user")
-	if err != nil {
-		fmt.Println("JC: ERR!", err)
-	}
-	fmt.Println("JC: USER=>", user)
-
 	cmd := &cobra.Command{
 		Use:          "pin",
 		Short:        "Pin resources for use in subsequent commands",
