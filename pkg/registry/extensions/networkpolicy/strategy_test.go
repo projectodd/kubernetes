@@ -20,12 +20,13 @@ import (
 	"testing"
 
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/extensions"
+	metav1 "k8s.io/kubernetes/pkg/apis/meta/v1"
+	genericapirequest "k8s.io/kubernetes/pkg/genericapiserver/api/request"
 )
 
 func TestNetworkPolicyStrategy(t *testing.T) {
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	if !Strategy.NamespaceScoped() {
 		t.Errorf("NetworkPolicy must be namespace scoped")
 	}
@@ -37,7 +38,7 @@ func TestNetworkPolicyStrategy(t *testing.T) {
 	np := &extensions.NetworkPolicy{
 		ObjectMeta: api.ObjectMeta{Name: "abc", Namespace: api.NamespaceDefault},
 		Spec: extensions.NetworkPolicySpec{
-			PodSelector: unversioned.LabelSelector{MatchLabels: validMatchLabels},
+			PodSelector: metav1.LabelSelector{MatchLabels: validMatchLabels},
 			Ingress:     []extensions.NetworkPolicyIngressRule{},
 		},
 	}

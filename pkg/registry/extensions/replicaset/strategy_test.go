@@ -20,12 +20,13 @@ import (
 	"testing"
 
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/extensions"
+	metav1 "k8s.io/kubernetes/pkg/apis/meta/v1"
+	genericapirequest "k8s.io/kubernetes/pkg/genericapiserver/api/request"
 )
 
 func TestReplicaSetStrategy(t *testing.T) {
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	if !Strategy.NamespaceScoped() {
 		t.Errorf("ReplicaSet must be namespace scoped")
 	}
@@ -49,7 +50,7 @@ func TestReplicaSetStrategy(t *testing.T) {
 	rs := &extensions.ReplicaSet{
 		ObjectMeta: api.ObjectMeta{Name: "abc", Namespace: api.NamespaceDefault},
 		Spec: extensions.ReplicaSetSpec{
-			Selector: &unversioned.LabelSelector{MatchLabels: validSelector},
+			Selector: &metav1.LabelSelector{MatchLabels: validSelector},
 			Template: validPodTemplate.Template,
 		},
 		Status: extensions.ReplicaSetStatus{
@@ -84,7 +85,7 @@ func TestReplicaSetStrategy(t *testing.T) {
 }
 
 func TestReplicaSetStatusStrategy(t *testing.T) {
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	if !StatusStrategy.NamespaceScoped() {
 		t.Errorf("ReplicaSet must be namespace scoped")
 	}
@@ -108,7 +109,7 @@ func TestReplicaSetStatusStrategy(t *testing.T) {
 		ObjectMeta: api.ObjectMeta{Name: "abc", Namespace: api.NamespaceDefault, ResourceVersion: "10"},
 		Spec: extensions.ReplicaSetSpec{
 			Replicas: 3,
-			Selector: &unversioned.LabelSelector{MatchLabels: validSelector},
+			Selector: &metav1.LabelSelector{MatchLabels: validSelector},
 			Template: validPodTemplate.Template,
 		},
 		Status: extensions.ReplicaSetStatus{
@@ -120,7 +121,7 @@ func TestReplicaSetStatusStrategy(t *testing.T) {
 		ObjectMeta: api.ObjectMeta{Name: "abc", Namespace: api.NamespaceDefault, ResourceVersion: "9"},
 		Spec: extensions.ReplicaSetSpec{
 			Replicas: 1,
-			Selector: &unversioned.LabelSelector{MatchLabels: validSelector},
+			Selector: &metav1.LabelSelector{MatchLabels: validSelector},
 			Template: validPodTemplate.Template,
 		},
 		Status: extensions.ReplicaSetStatus{

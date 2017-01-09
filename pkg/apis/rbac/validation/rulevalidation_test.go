@@ -23,9 +23,9 @@ import (
 	"sort"
 	"testing"
 
+	"k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/apis/rbac"
-	"k8s.io/kubernetes/pkg/auth/user"
 	"k8s.io/kubernetes/pkg/util/diff"
 )
 
@@ -72,7 +72,7 @@ func TestDefaultRuleResolver(t *testing.T) {
 		Resources: []string{"*"},
 	}
 
-	staticRoles1 := staticRoles{
+	staticRoles1 := StaticRoles{
 		roles: []*rbac.Role{
 			{
 				ObjectMeta: api.ObjectMeta{Namespace: "namespace1", Name: "readthings"},
@@ -111,7 +111,7 @@ func TestDefaultRuleResolver(t *testing.T) {
 	}
 
 	tests := []struct {
-		staticRoles
+		StaticRoles
 
 		// For a given context, what are the rules that apply?
 		user           user.Info
@@ -119,32 +119,32 @@ func TestDefaultRuleResolver(t *testing.T) {
 		effectiveRules []rbac.PolicyRule
 	}{
 		{
-			staticRoles:    staticRoles1,
+			StaticRoles:    staticRoles1,
 			user:           &user.DefaultInfo{Name: "foobar"},
 			namespace:      "namespace1",
 			effectiveRules: []rbac.PolicyRule{ruleReadPods, ruleReadServices},
 		},
 		{
-			staticRoles:    staticRoles1,
+			StaticRoles:    staticRoles1,
 			user:           &user.DefaultInfo{Name: "foobar"},
 			namespace:      "namespace2",
 			effectiveRules: []rbac.PolicyRule{},
 		},
 		{
-			staticRoles: staticRoles1,
+			StaticRoles: staticRoles1,
 			// Same as above but without a namespace. Only cluster rules should apply.
 			user:           &user.DefaultInfo{Name: "foobar", Groups: []string{"admin"}},
 			effectiveRules: []rbac.PolicyRule{ruleAdmin},
 		},
 		{
-			staticRoles:    staticRoles1,
+			StaticRoles:    staticRoles1,
 			user:           &user.DefaultInfo{},
 			effectiveRules: []rbac.PolicyRule{},
 		},
 	}
 
 	for i, tc := range tests {
-		ruleResolver := newMockRuleResolver(&tc.staticRoles)
+		ruleResolver := newMockRuleResolver(&tc.StaticRoles)
 		rules, err := ruleResolver.RulesFor(tc.user, tc.namespace)
 		if err != nil {
 			t.Errorf("case %d: GetEffectivePolicyRules(context)=%v", i, err)
@@ -232,8 +232,28 @@ func TestAppliesTo(t *testing.T) {
 			},
 			user:      &user.DefaultInfo{Name: "foobar"},
 			namespace: "default",
+			appliesTo: false,
+			testCase:  "* user subject name doesn't match all users",
+		},
+		{
+			subjects: []rbac.Subject{
+				{Kind: rbac.GroupKind, Name: user.AllAuthenticated},
+				{Kind: rbac.GroupKind, Name: user.AllUnauthenticated},
+			},
+			user:      &user.DefaultInfo{Name: "foobar", Groups: []string{user.AllAuthenticated}},
+			namespace: "default",
 			appliesTo: true,
-			testCase:  "multiple subjects with a service account that matches",
+			testCase:  "binding to all authenticated and unauthenticated subjects matches authenticated user",
+		},
+		{
+			subjects: []rbac.Subject{
+				{Kind: rbac.GroupKind, Name: user.AllAuthenticated},
+				{Kind: rbac.GroupKind, Name: user.AllUnauthenticated},
+			},
+			user:      &user.DefaultInfo{Name: "system:anonymous", Groups: []string{user.AllUnauthenticated}},
+			namespace: "default",
+			appliesTo: true,
+			testCase:  "binding to all authenticated and unauthenticated subjects matches anonymous user",
 		},
 	}
 

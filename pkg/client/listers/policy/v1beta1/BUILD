@@ -4,15 +4,13 @@ licenses(["notice"])
 
 load(
     "@io_bazel_rules_go//go:def.bzl",
-    "go_binary",
     "go_library",
-    "go_test",
-    "cgo_library",
 )
 
 go_library(
     name = "go_default_library",
     srcs = [
+        "eviction.go",
         "expansion_generated.go",
         "poddisruptionbudget.go",
     ],
@@ -24,4 +22,17 @@ go_library(
         "//pkg/client/cache:go_default_library",
         "//pkg/labels:go_default_library",
     ],
+)
+
+filegroup(
+    name = "package-srcs",
+    srcs = glob(["**"]),
+    tags = ["automanaged"],
+    visibility = ["//visibility:private"],
+)
+
+filegroup(
+    name = "all-srcs",
+    srcs = [":package-srcs"],
+    tags = ["automanaged"],
 )

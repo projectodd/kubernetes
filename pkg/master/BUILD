@@ -4,10 +4,8 @@ licenses(["notice"])
 
 load(
     "@io_bazel_rules_go//go:def.bzl",
-    "go_binary",
     "go_library",
     "go_test",
-    "cgo_library",
 )
 
 go_library(
@@ -17,15 +15,15 @@ go_library(
         "doc.go",
         "import_known_versions.go",
         "master.go",
+        "services.go",
     ],
     tags = ["automanaged"],
     deps = [
+        "//cmd/kube-apiserver/app/options:go_default_library",
         "//pkg/api:go_default_library",
         "//pkg/api/endpoints:go_default_library",
         "//pkg/api/errors:go_default_library",
         "//pkg/api/install:go_default_library",
-        "//pkg/api/rest:go_default_library",
-        "//pkg/api/unversioned:go_default_library",
         "//pkg/api/v1:go_default_library",
         "//pkg/apimachinery/registered:go_default_library",
         "//pkg/apis/apps/install:go_default_library",
@@ -44,16 +42,16 @@ go_library(
         "//pkg/apis/extensions/install:go_default_library",
         "//pkg/apis/extensions/v1beta1:go_default_library",
         "//pkg/apis/imagepolicy/install:go_default_library",
+        "//pkg/apis/meta/v1:go_default_library",
         "//pkg/apis/policy/install:go_default_library",
         "//pkg/apis/policy/v1beta1:go_default_library",
         "//pkg/apis/rbac/install:go_default_library",
         "//pkg/apis/rbac/v1alpha1:go_default_library",
         "//pkg/apis/storage/install:go_default_library",
         "//pkg/apis/storage/v1beta1:go_default_library",
+        "//pkg/client/clientset_generated/clientset/typed/core/v1:go_default_library",
         "//pkg/client/clientset_generated/internalclientset/typed/core/internalversion:go_default_library",
         "//pkg/genericapiserver:go_default_library",
-        "//pkg/genericapiserver/options:go_default_library",
-        "//pkg/healthz:go_default_library",
         "//pkg/kubelet/client:go_default_library",
         "//pkg/master/thirdparty:go_default_library",
         "//pkg/registry/apps/rest:go_default_library",
@@ -62,10 +60,9 @@ go_library(
         "//pkg/registry/autoscaling/rest:go_default_library",
         "//pkg/registry/batch/rest:go_default_library",
         "//pkg/registry/certificates/rest:go_default_library",
-        "//pkg/registry/core/namespace:go_default_library",
         "//pkg/registry/core/rangeallocation:go_default_library",
         "//pkg/registry/core/rest:go_default_library",
-        "//pkg/registry/core/service:go_default_library",
+        "//pkg/registry/core/service/ipallocator:go_default_library",
         "//pkg/registry/core/service/ipallocator/controller:go_default_library",
         "//pkg/registry/core/service/portallocator/controller:go_default_library",
         "//pkg/registry/extensions/rest:go_default_library",
@@ -75,6 +72,7 @@ go_library(
         "//pkg/registry/rbac/rest:go_default_library",
         "//pkg/registry/storage/rest:go_default_library",
         "//pkg/routes:go_default_library",
+        "//pkg/runtime/schema:go_default_library",
         "//pkg/util/async:go_default_library",
         "//pkg/util/intstr:go_default_library",
         "//pkg/util/net:go_default_library",
@@ -83,6 +81,7 @@ go_library(
         "//pkg/util/wait:go_default_library",
         "//vendor:github.com/golang/glog",
         "//vendor:github.com/prometheus/client_golang/prometheus",
+        "//vendor:k8s.io/apiserver/pkg/healthz",
     ],
 )
 
@@ -93,12 +92,11 @@ go_test(
         "import_known_versions_test.go",
         "master_test.go",
     ],
-    library = "go_default_library",
+    library = ":go_default_library",
     tags = ["automanaged"],
     deps = [
         "//pkg/api:go_default_library",
         "//pkg/api/testapi:go_default_library",
-        "//pkg/api/unversioned:go_default_library",
         "//pkg/api/v1:go_default_library",
         "//pkg/apimachinery/registered:go_default_library",
         "//pkg/apis/apps:go_default_library",
@@ -111,15 +109,18 @@ go_test(
         "//pkg/apis/certificates:go_default_library",
         "//pkg/apis/extensions:go_default_library",
         "//pkg/apis/extensions/v1beta1:go_default_library",
+        "//pkg/apis/meta/v1:go_default_library",
         "//pkg/apis/rbac:go_default_library",
+        "//pkg/client/clientset_generated/clientset/fake:go_default_library",
         "//pkg/client/clientset_generated/internalclientset/fake:go_default_library",
         "//pkg/client/restclient:go_default_library",
         "//pkg/client/testing/core:go_default_library",
         "//pkg/generated/openapi:go_default_library",
         "//pkg/genericapiserver:go_default_library",
+        "//pkg/genericapiserver/api/request:go_default_library",
         "//pkg/kubelet/client:go_default_library",
-        "//pkg/registry/registrytest:go_default_library",
         "//pkg/runtime:go_default_library",
+        "//pkg/runtime/schema:go_default_library",
         "//pkg/storage/etcd/testing:go_default_library",
         "//pkg/util/intstr:go_default_library",
         "//pkg/util/net:go_default_library",
@@ -131,4 +132,21 @@ go_test(
         "//vendor:github.com/go-openapi/validate",
         "//vendor:github.com/stretchr/testify/assert",
     ],
+)
+
+filegroup(
+    name = "package-srcs",
+    srcs = glob(["**"]),
+    tags = ["automanaged"],
+    visibility = ["//visibility:private"],
+)
+
+filegroup(
+    name = "all-srcs",
+    srcs = [
+        ":package-srcs",
+        "//pkg/master/ports:all-srcs",
+        "//pkg/master/thirdparty:all-srcs",
+    ],
+    tags = ["automanaged"],
 )

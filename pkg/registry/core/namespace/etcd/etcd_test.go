@@ -20,12 +20,12 @@ import (
 	"testing"
 
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/unversioned"
+	metav1 "k8s.io/kubernetes/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/fields"
+	genericapirequest "k8s.io/kubernetes/pkg/genericapiserver/api/request"
 	"k8s.io/kubernetes/pkg/labels"
 	"k8s.io/kubernetes/pkg/registry/generic"
 	"k8s.io/kubernetes/pkg/registry/registrytest"
-	"k8s.io/kubernetes/pkg/storage/etcd/etcdtest"
 	etcdtesting "k8s.io/kubernetes/pkg/storage/etcd/testing"
 )
 
@@ -66,13 +66,13 @@ func TestCreateSetsFields(t *testing.T) {
 	defer server.Terminate(t)
 	defer storage.Store.DestroyFunc()
 	namespace := validNewNamespace()
-	ctx := api.NewContext()
+	ctx := genericapirequest.NewContext()
 	_, err := storage.Create(ctx, namespace)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	object, err := storage.Get(ctx, "foo")
+	object, err := storage.Get(ctx, "foo", &metav1.GetOptions{})
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -141,9 +141,9 @@ func TestDeleteNamespaceWithIncompleteFinalizers(t *testing.T) {
 	storage, server := newStorage(t)
 	defer server.Terminate(t)
 	defer storage.Store.DestroyFunc()
-	key := etcdtest.AddPrefix("namespaces/foo")
-	ctx := api.NewContext()
-	now := unversioned.Now()
+	key := "namespaces/foo"
+	ctx := genericapirequest.NewContext()
+	now := metav1.Now()
 	namespace := &api.Namespace{
 		ObjectMeta: api.ObjectMeta{
 			Name:              "foo",
@@ -166,9 +166,9 @@ func TestDeleteNamespaceWithCompleteFinalizers(t *testing.T) {
 	storage, server := newStorage(t)
 	defer server.Terminate(t)
 	defer storage.Store.DestroyFunc()
-	key := etcdtest.AddPrefix("namespaces/foo")
-	ctx := api.NewContext()
-	now := unversioned.Now()
+	key := "namespaces/foo"
+	ctx := genericapirequest.NewContext()
+	now := metav1.Now()
 	namespace := &api.Namespace{
 		ObjectMeta: api.ObjectMeta{
 			Name:              "foo",

@@ -30,9 +30,8 @@ import (
 
 	"k8s.io/kubernetes/pkg/api"
 	apierrors "k8s.io/kubernetes/pkg/api/errors"
-	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/imagepolicy/v1alpha1"
-	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+	"k8s.io/kubernetes/pkg/runtime/schema"
 	"k8s.io/kubernetes/pkg/util/yaml"
 
 	"k8s.io/kubernetes/pkg/client/restclient"
@@ -43,12 +42,12 @@ import (
 )
 
 var (
-	groupVersions = []unversioned.GroupVersion{v1alpha1.SchemeGroupVersion}
+	groupVersions = []schema.GroupVersion{v1alpha1.SchemeGroupVersion}
 )
 
 func init() {
-	admission.RegisterPlugin("ImagePolicyWebhook", func(client clientset.Interface, config io.Reader) (admission.Interface, error) {
-		newImagePolicyWebhook, err := NewImagePolicyWebhook(client, config)
+	admission.RegisterPlugin("ImagePolicyWebhook", func(config io.Reader) (admission.Interface, error) {
+		newImagePolicyWebhook, err := NewImagePolicyWebhook(config)
 		if err != nil {
 			return nil, err
 		}
@@ -101,7 +100,7 @@ func (a *imagePolicyWebhook) webhookError(attributes admission.Attributes, err e
 
 func (a *imagePolicyWebhook) Admit(attributes admission.Attributes) (err error) {
 	// Ignore all calls to subresources or resources other than pods.
-	allowedResources := map[unversioned.GroupResource]bool{
+	allowedResources := map[schema.GroupResource]bool{
 		api.Resource("pods"): true,
 	}
 
@@ -211,7 +210,7 @@ func (a *imagePolicyWebhook) admitPod(attributes admission.Attributes, review *v
 //
 // For additional HTTP configuration, refer to the kubeconfig documentation
 // http://kubernetes.io/v1.1/docs/user-guide/kubeconfig-file.html.
-func NewImagePolicyWebhook(client clientset.Interface, configFile io.Reader) (admission.Interface, error) {
+func NewImagePolicyWebhook(configFile io.Reader) (admission.Interface, error) {
 	var config AdmissionConfig
 	d := yaml.NewYAMLOrJSONDecoder(configFile, 4096)
 	err := d.Decode(&config)

@@ -23,7 +23,8 @@ import (
 	"os"
 	"strings"
 
-	"k8s.io/kubernetes/pkg/auth/user"
+	"github.com/golang/glog"
+	"k8s.io/apiserver/pkg/authentication/user"
 )
 
 type TokenAuthenticator struct {
@@ -46,6 +47,7 @@ func NewCSV(path string) (*TokenAuthenticator, error) {
 	}
 	defer file.Close()
 
+	recordNum := 0
 	tokens := make(map[string]*user.DefaultInfo)
 	reader := csv.NewReader(file)
 	reader.FieldsPerRecord = -1
@@ -63,6 +65,10 @@ func NewCSV(path string) (*TokenAuthenticator, error) {
 		obj := &user.DefaultInfo{
 			Name: record[1],
 			UID:  record[2],
+		}
+		recordNum++
+		if _, exist := tokens[record[0]]; exist {
+			glog.Warningf("duplicate token has been found in token file '%s', record number '%d'", path, recordNum)
 		}
 		tokens[record[0]] = obj
 

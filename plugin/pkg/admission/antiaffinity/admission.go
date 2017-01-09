@@ -24,31 +24,28 @@ import (
 	"k8s.io/kubernetes/pkg/admission"
 	"k8s.io/kubernetes/pkg/api"
 	apierrors "k8s.io/kubernetes/pkg/api/errors"
-	"k8s.io/kubernetes/pkg/api/unversioned"
-	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+	metav1 "k8s.io/kubernetes/pkg/apis/meta/v1"
 )
 
 func init() {
-	admission.RegisterPlugin("LimitPodHardAntiAffinityTopology", func(client clientset.Interface, config io.Reader) (admission.Interface, error) {
-		return NewInterPodAntiAffinity(client), nil
+	admission.RegisterPlugin("LimitPodHardAntiAffinityTopology", func(config io.Reader) (admission.Interface, error) {
+		return NewInterPodAntiAffinity(), nil
 	})
 }
 
 // plugin contains the client used by the admission controller
 type plugin struct {
 	*admission.Handler
-	client clientset.Interface
 }
 
 // NewInterPodAntiAffinity creates a new instance of the LimitPodHardAntiAffinityTopology admission controller
-func NewInterPodAntiAffinity(client clientset.Interface) admission.Interface {
+func NewInterPodAntiAffinity() admission.Interface {
 	return &plugin{
 		Handler: admission.NewHandler(admission.Create, admission.Update),
-		client:  client,
 	}
 }
 
-// Admit will deny any pod that defines AntiAffinity topology key other than unversioned.LabelHostname i.e. "kubernetes.io/hostname"
+// Admit will deny any pod that defines AntiAffinity topology key other than metav1.LabelHostname i.e. "kubernetes.io/hostname"
 // in  requiredDuringSchedulingRequiredDuringExecution and requiredDuringSchedulingIgnoredDuringExecution.
 func (p *plugin) Admit(attributes admission.Attributes) (err error) {
 	// Ignore all calls to subresources or resources other than pods.
@@ -74,8 +71,8 @@ func (p *plugin) Admit(attributes admission.Attributes) (err error) {
 		//        podAntiAffinityTerms = append(podAntiAffinityTerms, affinity.PodAntiAffinity.RequiredDuringSchedulingRequiredDuringExecution...)
 		//}
 		for _, v := range podAntiAffinityTerms {
-			if v.TopologyKey != unversioned.LabelHostname {
-				return apierrors.NewForbidden(attributes.GetResource().GroupResource(), pod.Name, fmt.Errorf("affinity.PodAntiAffinity.RequiredDuringScheduling has TopologyKey %v but only key %v is allowed", v.TopologyKey, unversioned.LabelHostname))
+			if v.TopologyKey != metav1.LabelHostname {
+				return apierrors.NewForbidden(attributes.GetResource().GroupResource(), pod.Name, fmt.Errorf("affinity.PodAntiAffinity.RequiredDuringScheduling has TopologyKey %v but only key %v is allowed", v.TopologyKey, metav1.LabelHostname))
 			}
 		}
 	}

@@ -21,8 +21,12 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/kubernetes/pkg/api"
-	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+	"k8s.io/kubernetes/pkg/api/v1"
+	metav1 "k8s.io/kubernetes/pkg/apis/meta/v1"
+	rbacv1alpha1 "k8s.io/kubernetes/pkg/apis/rbac/v1alpha1"
+	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	"k8s.io/kubernetes/pkg/runtime/schema"
+	"k8s.io/kubernetes/pkg/serviceaccount"
 	"k8s.io/kubernetes/pkg/util/wait"
 	"k8s.io/kubernetes/test/e2e/framework"
 
@@ -36,16 +40,16 @@ type State struct {
 
 func testPreStop(c clientset.Interface, ns string) {
 	// This is the server that will receive the preStop notification
-	podDescr := &api.Pod{
-		ObjectMeta: api.ObjectMeta{
+	podDescr := &v1.Pod{
+		ObjectMeta: v1.ObjectMeta{
 			Name: "server",
 		},
-		Spec: api.PodSpec{
-			Containers: []api.Container{
+		Spec: v1.PodSpec{
+			Containers: []v1.Container{
 				{
 					Name:  "server",
 					Image: "gcr.io/google_containers/nettest:1.7",
-					Ports: []api.ContainerPort{{ContainerPort: 8080}},
+					Ports: []v1.ContainerPort{{ContainerPort: 8080}},
 				},
 			},
 		},
@@ -66,22 +70,22 @@ func testPreStop(c clientset.Interface, ns string) {
 
 	val := "{\"Source\": \"prestop\"}"
 
-	podOut, err := c.Core().Pods(ns).Get(podDescr.Name)
+	podOut, err := c.Core().Pods(ns).Get(podDescr.Name, metav1.GetOptions{})
 	framework.ExpectNoError(err, "getting pod info")
 
-	preStopDescr := &api.Pod{
-		ObjectMeta: api.ObjectMeta{
+	preStopDescr := &v1.Pod{
+		ObjectMeta: v1.ObjectMeta{
 			Name: "tester",
 		},
-		Spec: api.PodSpec{
-			Containers: []api.Container{
+		Spec: v1.PodSpec{
+			Containers: []v1.Container{
 				{
 					Name:    "tester",
 					Image:   "gcr.io/google_containers/busybox:1.24",
 					Command: []string{"sleep", "600"},
-					Lifecycle: &api.Lifecycle{
-						PreStop: &api.Handler{
-							Exec: &api.ExecAction{
+					Lifecycle: &v1.Lifecycle{
+						PreStop: &v1.Handler{
+							Exec: &v1.ExecAction{
 								Command: []string{
 									"wget", "-O-", "--post-data=" + val, fmt.Sprintf("http://%s:8080/write", podOut.Status.PodIP),
 								},
@@ -161,6 +165,18 @@ func testPreStop(c clientset.Interface, ns string) {
 
 var _ = framework.KubeDescribe("PreStop", func() {
 	f := framework.NewDefaultFramework("prestop")
+
+	BeforeEach(func() {
+		// this test wants extra permissions.  Since the namespace names are unique, we can leave this
+		// lying around so we don't have to race any caches
+		framework.BindClusterRole(f.ClientSet.Rbac(), "cluster-admin", f.Namespace.Name,
+			rbacv1alpha1.Subject{Kind: rbacv1alpha1.ServiceAccountKind, Namespace: f.Namespace.Name, Name: "default"})
+
+		err := framework.WaitForAuthorizationUpdate(f.ClientSet.Authorization(),
+			serviceaccount.MakeUsername(f.Namespace.Name, "default"),
+			"", "create", schema.GroupResource{Resource: "pods"}, true)
+		framework.ExpectNoError(err)
+	})
 
 	It("should call prestop when killing a pod [Conformance]", func() {
 		testPreStop(f.ClientSet, f.Namespace.Name)

@@ -20,12 +20,13 @@ import (
 	"testing"
 
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/apps"
+	metav1 "k8s.io/kubernetes/pkg/apis/meta/v1"
+	genericapirequest "k8s.io/kubernetes/pkg/genericapiserver/api/request"
 )
 
 func TestStatefulSetStrategy(t *testing.T) {
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	if !Strategy.NamespaceScoped() {
 		t.Errorf("StatefulSet must be namespace scoped")
 	}
@@ -49,7 +50,7 @@ func TestStatefulSetStrategy(t *testing.T) {
 	ps := &apps.StatefulSet{
 		ObjectMeta: api.ObjectMeta{Name: "abc", Namespace: api.NamespaceDefault},
 		Spec: apps.StatefulSetSpec{
-			Selector: &unversioned.LabelSelector{MatchLabels: validSelector},
+			Selector: &metav1.LabelSelector{MatchLabels: validSelector},
 			Template: validPodTemplate.Template,
 		},
 		Status: apps.StatefulSetStatus{Replicas: 3},
@@ -79,7 +80,7 @@ func TestStatefulSetStrategy(t *testing.T) {
 		t.Errorf("Updating spec.Replicas is allowed on a statefulset: %v", errs)
 	}
 
-	validPs.Spec.Selector = &unversioned.LabelSelector{MatchLabels: map[string]string{"a": "bar"}}
+	validPs.Spec.Selector = &metav1.LabelSelector{MatchLabels: map[string]string{"a": "bar"}}
 	Strategy.PrepareForUpdate(ctx, validPs, ps)
 	errs = Strategy.ValidateUpdate(ctx, validPs, ps)
 	if len(errs) == 0 {
@@ -88,7 +89,7 @@ func TestStatefulSetStrategy(t *testing.T) {
 }
 
 func TestStatefulSetStatusStrategy(t *testing.T) {
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	if !StatusStrategy.NamespaceScoped() {
 		t.Errorf("StatefulSet must be namespace scoped")
 	}
@@ -112,7 +113,7 @@ func TestStatefulSetStatusStrategy(t *testing.T) {
 		ObjectMeta: api.ObjectMeta{Name: "abc", Namespace: api.NamespaceDefault, ResourceVersion: "10"},
 		Spec: apps.StatefulSetSpec{
 			Replicas: 3,
-			Selector: &unversioned.LabelSelector{MatchLabels: validSelector},
+			Selector: &metav1.LabelSelector{MatchLabels: validSelector},
 			Template: validPodTemplate.Template,
 		},
 		Status: apps.StatefulSetStatus{
@@ -123,7 +124,7 @@ func TestStatefulSetStatusStrategy(t *testing.T) {
 		ObjectMeta: api.ObjectMeta{Name: "abc", Namespace: api.NamespaceDefault, ResourceVersion: "9"},
 		Spec: apps.StatefulSetSpec{
 			Replicas: 1,
-			Selector: &unversioned.LabelSelector{MatchLabels: validSelector},
+			Selector: &metav1.LabelSelector{MatchLabels: validSelector},
 			Template: validPodTemplate.Template,
 		},
 		Status: apps.StatefulSetStatus{

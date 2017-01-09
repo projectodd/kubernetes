@@ -22,14 +22,14 @@ import (
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/errors"
 	"k8s.io/kubernetes/pkg/api/rest"
-	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/extensions"
+	metav1 "k8s.io/kubernetes/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/fields"
+	genericapirequest "k8s.io/kubernetes/pkg/genericapiserver/api/request"
 	"k8s.io/kubernetes/pkg/labels"
 	"k8s.io/kubernetes/pkg/registry/generic"
 	"k8s.io/kubernetes/pkg/registry/registrytest"
 	"k8s.io/kubernetes/pkg/runtime"
-	"k8s.io/kubernetes/pkg/storage/etcd/etcdtest"
 	etcdtesting "k8s.io/kubernetes/pkg/storage/etcd/testing"
 	"k8s.io/kubernetes/pkg/util/diff"
 )
@@ -45,7 +45,7 @@ func newStorage(t *testing.T) (*ReplicaSetStorage, *etcdtesting.EtcdTestServer) 
 
 // createReplicaSet is a helper function that returns a ReplicaSet with the updated resource version.
 func createReplicaSet(storage *REST, rs extensions.ReplicaSet, t *testing.T) (extensions.ReplicaSet, error) {
-	ctx := api.WithNamespace(api.NewContext(), rs.Namespace)
+	ctx := genericapirequest.WithNamespace(genericapirequest.NewContext(), rs.Namespace)
 	obj, err := storage.Create(ctx, &rs)
 	if err != nil {
 		t.Errorf("Failed to create ReplicaSet, %v", err)
@@ -61,7 +61,7 @@ func validNewReplicaSet() *extensions.ReplicaSet {
 			Namespace: api.NamespaceDefault,
 		},
 		Spec: extensions.ReplicaSetSpec{
-			Selector: &unversioned.LabelSelector{MatchLabels: map[string]string{"a": "b"}},
+			Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"a": "b"}},
 			Template: api.PodTemplateSpec{
 				ObjectMeta: api.ObjectMeta{
 					Labels: map[string]string{"a": "b"},
@@ -102,7 +102,7 @@ func TestCreate(t *testing.T) {
 		&extensions.ReplicaSet{
 			Spec: extensions.ReplicaSetSpec{
 				Replicas: 2,
-				Selector: &unversioned.LabelSelector{MatchLabels: map[string]string{}},
+				Selector: &metav1.LabelSelector{MatchLabels: map[string]string{}},
 				Template: validReplicaSet.Spec.Template,
 			},
 		},
@@ -131,7 +131,7 @@ func TestUpdate(t *testing.T) {
 		},
 		func(obj runtime.Object) runtime.Object {
 			object := obj.(*extensions.ReplicaSet)
-			object.Spec.Selector = &unversioned.LabelSelector{MatchLabels: map[string]string{}}
+			object.Spec.Selector = &metav1.LabelSelector{MatchLabels: map[string]string{}}
 			return object
 		},
 	)
@@ -152,9 +152,9 @@ func TestGenerationNumber(t *testing.T) {
 	modifiedSno := *validNewReplicaSet()
 	modifiedSno.Generation = 100
 	modifiedSno.Status.ObservedGeneration = 10
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	rs, err := createReplicaSet(storage.ReplicaSet, modifiedSno, t)
-	etcdRS, err := storage.ReplicaSet.Get(ctx, rs.Name)
+	etcdRS, err := storage.ReplicaSet.Get(ctx, rs.Name, &metav1.GetOptions{})
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -171,7 +171,7 @@ func TestGenerationNumber(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
-	etcdRS, err = storage.ReplicaSet.Get(ctx, rs.Name)
+	etcdRS, err = storage.ReplicaSet.Get(ctx, rs.Name, &metav1.GetOptions{})
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -186,7 +186,7 @@ func TestGenerationNumber(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
-	etcdRS, err = storage.ReplicaSet.Get(ctx, rs.Name)
+	etcdRS, err = storage.ReplicaSet.Get(ctx, rs.Name, &metav1.GetOptions{})
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -253,8 +253,8 @@ func TestScaleGet(t *testing.T) {
 	name := "foo"
 
 	var rs extensions.ReplicaSet
-	ctx := api.WithNamespace(api.NewContext(), api.NamespaceDefault)
-	key := etcdtest.AddPrefix("/replicasets/" + api.NamespaceDefault + "/" + name)
+	ctx := genericapirequest.WithNamespace(genericapirequest.NewContext(), api.NamespaceDefault)
+	key := "/replicasets/" + api.NamespaceDefault + "/" + name
 	if err := storage.ReplicaSet.Storage.Create(ctx, key, &validReplicaSet, &rs, 0); err != nil {
 		t.Fatalf("error setting new replica set (key: %s) %v: %v", key, validReplicaSet, err)
 	}
@@ -275,7 +275,7 @@ func TestScaleGet(t *testing.T) {
 			Selector: validReplicaSet.Spec.Selector,
 		},
 	}
-	obj, err := storage.Scale.Get(ctx, name)
+	obj, err := storage.Scale.Get(ctx, name, &metav1.GetOptions{})
 	got := obj.(*extensions.Scale)
 	if err != nil {
 		t.Fatalf("error fetching scale for %s: %v", name, err)
@@ -293,8 +293,8 @@ func TestScaleUpdate(t *testing.T) {
 	name := "foo"
 
 	var rs extensions.ReplicaSet
-	ctx := api.WithNamespace(api.NewContext(), api.NamespaceDefault)
-	key := etcdtest.AddPrefix("/replicasets/" + api.NamespaceDefault + "/" + name)
+	ctx := genericapirequest.WithNamespace(genericapirequest.NewContext(), api.NamespaceDefault)
+	key := "/replicasets/" + api.NamespaceDefault + "/" + name
 	if err := storage.ReplicaSet.Storage.Create(ctx, key, &validReplicaSet, &rs, 0); err != nil {
 		t.Fatalf("error setting new replica set (key: %s) %v: %v", key, validReplicaSet, err)
 	}
@@ -313,7 +313,7 @@ func TestScaleUpdate(t *testing.T) {
 		t.Fatalf("error updating scale %v: %v", update, err)
 	}
 
-	obj, err := storage.Scale.Get(ctx, name)
+	obj, err := storage.Scale.Get(ctx, name, &metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("error fetching scale for %s: %v", name, err)
 	}
@@ -335,8 +335,8 @@ func TestStatusUpdate(t *testing.T) {
 	defer server.Terminate(t)
 	defer storage.ReplicaSet.Store.DestroyFunc()
 
-	ctx := api.WithNamespace(api.NewContext(), api.NamespaceDefault)
-	key := etcdtest.AddPrefix("/replicasets/" + api.NamespaceDefault + "/foo")
+	ctx := genericapirequest.WithNamespace(genericapirequest.NewContext(), api.NamespaceDefault)
+	key := "/replicasets/" + api.NamespaceDefault + "/foo"
 	if err := storage.ReplicaSet.Storage.Create(ctx, key, &validReplicaSet, nil, 0); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -353,7 +353,7 @@ func TestStatusUpdate(t *testing.T) {
 	if _, _, err := storage.Status.Update(ctx, update.Name, rest.DefaultUpdatedObjectInfo(&update, api.Scheme)); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	obj, err := storage.ReplicaSet.Get(ctx, "foo")
+	obj, err := storage.ReplicaSet.Get(ctx, "foo", &metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

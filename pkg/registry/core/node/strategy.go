@@ -25,7 +25,9 @@ import (
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/errors"
 	"k8s.io/kubernetes/pkg/api/validation"
+	metav1 "k8s.io/kubernetes/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/fields"
+	genericapirequest "k8s.io/kubernetes/pkg/genericapiserver/api/request"
 	"k8s.io/kubernetes/pkg/kubelet/client"
 	"k8s.io/kubernetes/pkg/labels"
 	"k8s.io/kubernetes/pkg/registry/generic"
@@ -57,20 +59,20 @@ func (nodeStrategy) AllowCreateOnUpdate() bool {
 }
 
 // PrepareForCreate clears fields that are not allowed to be set by end users on creation.
-func (nodeStrategy) PrepareForCreate(ctx api.Context, obj runtime.Object) {
+func (nodeStrategy) PrepareForCreate(ctx genericapirequest.Context, obj runtime.Object) {
 	_ = obj.(*api.Node)
 	// Nodes allow *all* fields, including status, to be set on create.
 }
 
 // PrepareForUpdate clears fields that are not allowed to be set by end users on update.
-func (nodeStrategy) PrepareForUpdate(ctx api.Context, obj, old runtime.Object) {
+func (nodeStrategy) PrepareForUpdate(ctx genericapirequest.Context, obj, old runtime.Object) {
 	newNode := obj.(*api.Node)
 	oldNode := old.(*api.Node)
 	newNode.Status = oldNode.Status
 }
 
 // Validate validates a new node.
-func (nodeStrategy) Validate(ctx api.Context, obj runtime.Object) field.ErrorList {
+func (nodeStrategy) Validate(ctx genericapirequest.Context, obj runtime.Object) field.ErrorList {
 	node := obj.(*api.Node)
 	return validation.ValidateNode(node)
 }
@@ -80,7 +82,7 @@ func (nodeStrategy) Canonicalize(obj runtime.Object) {
 }
 
 // ValidateUpdate is the default update validation for an end user.
-func (nodeStrategy) ValidateUpdate(ctx api.Context, obj, old runtime.Object) field.ErrorList {
+func (nodeStrategy) ValidateUpdate(ctx genericapirequest.Context, obj, old runtime.Object) field.ErrorList {
 	errorList := validation.ValidateNode(obj.(*api.Node))
 	return append(errorList, validation.ValidateNodeUpdate(obj.(*api.Node), old.(*api.Node))...)
 }
@@ -89,7 +91,7 @@ func (nodeStrategy) AllowUnconditionalUpdate() bool {
 	return true
 }
 
-func (ns nodeStrategy) Export(ctx api.Context, obj runtime.Object, exact bool) error {
+func (ns nodeStrategy) Export(ctx genericapirequest.Context, obj runtime.Object, exact bool) error {
 	n, ok := obj.(*api.Node)
 	if !ok {
 		// unexpected programmer error
@@ -111,18 +113,18 @@ type nodeStatusStrategy struct {
 
 var StatusStrategy = nodeStatusStrategy{Strategy}
 
-func (nodeStatusStrategy) PrepareForCreate(ctx api.Context, obj runtime.Object) {
+func (nodeStatusStrategy) PrepareForCreate(ctx genericapirequest.Context, obj runtime.Object) {
 	_ = obj.(*api.Node)
 	// Nodes allow *all* fields, including status, to be set on create.
 }
 
-func (nodeStatusStrategy) PrepareForUpdate(ctx api.Context, obj, old runtime.Object) {
+func (nodeStatusStrategy) PrepareForUpdate(ctx genericapirequest.Context, obj, old runtime.Object) {
 	newNode := obj.(*api.Node)
 	oldNode := old.(*api.Node)
 	newNode.Spec = oldNode.Spec
 }
 
-func (nodeStatusStrategy) ValidateUpdate(ctx api.Context, obj, old runtime.Object) field.ErrorList {
+func (nodeStatusStrategy) ValidateUpdate(ctx genericapirequest.Context, obj, old runtime.Object) field.ErrorList {
 	return validation.ValidateNodeUpdate(obj.(*api.Node), old.(*api.Node))
 }
 
@@ -132,7 +134,7 @@ func (nodeStatusStrategy) Canonicalize(obj runtime.Object) {
 
 // ResourceGetter is an interface for retrieving resources by ResourceLocation.
 type ResourceGetter interface {
-	Get(api.Context, string) (runtime.Object, error)
+	Get(genericapirequest.Context, string, *metav1.GetOptions) (runtime.Object, error)
 }
 
 // NodeToSelectableFields returns a field set that represents the object.
@@ -144,27 +146,21 @@ func NodeToSelectableFields(node *api.Node) fields.Set {
 	return generic.MergeFieldsSets(objectMetaFieldsSet, specificFieldsSet)
 }
 
+// GetAttrs returns labels and fields of a given object for filtering purposes.
+func GetAttrs(obj runtime.Object) (labels.Set, fields.Set, error) {
+	nodeObj, ok := obj.(*api.Node)
+	if !ok {
+		return nil, nil, fmt.Errorf("not a node")
+	}
+	return labels.Set(nodeObj.ObjectMeta.Labels), NodeToSelectableFields(nodeObj), nil
+}
+
 // MatchNode returns a generic matcher for a given label and field selector.
 func MatchNode(label labels.Selector, field fields.Selector) pkgstorage.SelectionPredicate {
 	return pkgstorage.SelectionPredicate{
-		Label: label,
-		Field: field,
-		GetAttrs: func(obj runtime.Object) (labels.Set, fields.Set, error) {
-			nodeObj, ok := obj.(*api.Node)
-			if !ok {
-				return nil, nil, fmt.Errorf("not a node")
-			}
-
-			// Compute fields only if field selectors is non-empty
-			// (otherwise those won't be used).
-			// Those are generally also not needed if label selector does
-			// not match labels, but additional computation of it is expensive.
-			var nodeFields fields.Set
-			if !field.Empty() {
-				nodeFields = NodeToSelectableFields(nodeObj)
-			}
-			return labels.Set(nodeObj.ObjectMeta.Labels), nodeFields, nil
-		},
+		Label:       label,
+		Field:       field,
+		GetAttrs:    GetAttrs,
 		IndexFields: []string{"metadata.name"},
 	}
 }
@@ -176,13 +172,13 @@ func NodeNameTriggerFunc(obj runtime.Object) []pkgstorage.MatchValue {
 }
 
 // ResourceLocation returns an URL and transport which one can use to send traffic for the specified node.
-func ResourceLocation(getter ResourceGetter, connection client.ConnectionInfoGetter, proxyTransport http.RoundTripper, ctx api.Context, id string) (*url.URL, http.RoundTripper, error) {
+func ResourceLocation(getter ResourceGetter, connection client.ConnectionInfoGetter, proxyTransport http.RoundTripper, ctx genericapirequest.Context, id string) (*url.URL, http.RoundTripper, error) {
 	schemeReq, name, portReq, valid := utilnet.SplitSchemeNamePort(id)
 	if !valid {
 		return nil, nil, errors.NewBadRequest(fmt.Sprintf("invalid node request %q", id))
 	}
 
-	info, err := connection.GetConnectionInfo(ctx, types.NodeName(name))
+	info, err := connection.GetConnectionInfo(types.NodeName(name))
 	if err != nil {
 		return nil, nil, err
 	}

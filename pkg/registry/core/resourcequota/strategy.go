@@ -22,6 +22,7 @@ import (
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/validation"
 	"k8s.io/kubernetes/pkg/fields"
+	genericapirequest "k8s.io/kubernetes/pkg/genericapiserver/api/request"
 	"k8s.io/kubernetes/pkg/labels"
 	"k8s.io/kubernetes/pkg/registry/generic"
 	"k8s.io/kubernetes/pkg/runtime"
@@ -45,20 +46,20 @@ func (resourcequotaStrategy) NamespaceScoped() bool {
 }
 
 // PrepareForCreate clears fields that are not allowed to be set by end users on creation.
-func (resourcequotaStrategy) PrepareForCreate(ctx api.Context, obj runtime.Object) {
+func (resourcequotaStrategy) PrepareForCreate(ctx genericapirequest.Context, obj runtime.Object) {
 	resourcequota := obj.(*api.ResourceQuota)
 	resourcequota.Status = api.ResourceQuotaStatus{}
 }
 
 // PrepareForUpdate clears fields that are not allowed to be set by end users on update.
-func (resourcequotaStrategy) PrepareForUpdate(ctx api.Context, obj, old runtime.Object) {
+func (resourcequotaStrategy) PrepareForUpdate(ctx genericapirequest.Context, obj, old runtime.Object) {
 	newResourcequota := obj.(*api.ResourceQuota)
 	oldResourcequota := old.(*api.ResourceQuota)
 	newResourcequota.Status = oldResourcequota.Status
 }
 
 // Validate validates a new resourcequota.
-func (resourcequotaStrategy) Validate(ctx api.Context, obj runtime.Object) field.ErrorList {
+func (resourcequotaStrategy) Validate(ctx genericapirequest.Context, obj runtime.Object) field.ErrorList {
 	resourcequota := obj.(*api.ResourceQuota)
 	return validation.ValidateResourceQuota(resourcequota)
 }
@@ -73,7 +74,7 @@ func (resourcequotaStrategy) AllowCreateOnUpdate() bool {
 }
 
 // ValidateUpdate is the default update validation for an end user.
-func (resourcequotaStrategy) ValidateUpdate(ctx api.Context, obj, old runtime.Object) field.ErrorList {
+func (resourcequotaStrategy) ValidateUpdate(ctx genericapirequest.Context, obj, old runtime.Object) field.ErrorList {
 	errorList := validation.ValidateResourceQuota(obj.(*api.ResourceQuota))
 	return append(errorList, validation.ValidateResourceQuotaUpdate(obj.(*api.ResourceQuota), old.(*api.ResourceQuota))...)
 }
@@ -88,28 +89,31 @@ type resourcequotaStatusStrategy struct {
 
 var StatusStrategy = resourcequotaStatusStrategy{Strategy}
 
-func (resourcequotaStatusStrategy) PrepareForUpdate(ctx api.Context, obj, old runtime.Object) {
+func (resourcequotaStatusStrategy) PrepareForUpdate(ctx genericapirequest.Context, obj, old runtime.Object) {
 	newResourcequota := obj.(*api.ResourceQuota)
 	oldResourcequota := old.(*api.ResourceQuota)
 	newResourcequota.Spec = oldResourcequota.Spec
 }
 
-func (resourcequotaStatusStrategy) ValidateUpdate(ctx api.Context, obj, old runtime.Object) field.ErrorList {
+func (resourcequotaStatusStrategy) ValidateUpdate(ctx genericapirequest.Context, obj, old runtime.Object) field.ErrorList {
 	return validation.ValidateResourceQuotaStatusUpdate(obj.(*api.ResourceQuota), old.(*api.ResourceQuota))
+}
+
+// GetAttrs returns labels and fields of a given object for filtering purposes.
+func GetAttrs(obj runtime.Object) (labels.Set, fields.Set, error) {
+	resourcequotaObj, ok := obj.(*api.ResourceQuota)
+	if !ok {
+		return nil, nil, fmt.Errorf("not a resourcequota")
+	}
+	return labels.Set(resourcequotaObj.Labels), ResourceQuotaToSelectableFields(resourcequotaObj), nil
 }
 
 // MatchResourceQuota returns a generic matcher for a given label and field selector.
 func MatchResourceQuota(label labels.Selector, field fields.Selector) storage.SelectionPredicate {
 	return storage.SelectionPredicate{
-		Label: label,
-		Field: field,
-		GetAttrs: func(obj runtime.Object) (labels.Set, fields.Set, error) {
-			resourcequotaObj, ok := obj.(*api.ResourceQuota)
-			if !ok {
-				return nil, nil, fmt.Errorf("not a resourcequota")
-			}
-			return labels.Set(resourcequotaObj.Labels), ResourceQuotaToSelectableFields(resourcequotaObj), nil
-		},
+		Label:    label,
+		Field:    field,
+		GetAttrs: GetAttrs,
 	}
 }
 

@@ -180,6 +180,14 @@ func (ConfigMap) SwaggerDoc() map[string]string {
 	return map_ConfigMap
 }
 
+var map_ConfigMapEnvSource = map[string]string{
+	"": "ConfigMapEnvSource selects a ConfigMap to populate the environment variables with.\n\nThe contents of the target ConfigMap's Data field will represent the key-value pairs as environment variables.",
+}
+
+func (ConfigMapEnvSource) SwaggerDoc() map[string]string {
+	return map_ConfigMapEnvSource
+}
+
 var map_ConfigMapKeySelector = map[string]string{
 	"":    "Selects a key from a ConfigMap.",
 	"key": "The key to select.",
@@ -217,6 +225,7 @@ var map_Container = map[string]string{
 	"args":                   "Arguments to the entrypoint. The docker image's CMD is used if this is not provided. Variable references $(VAR_NAME) are expanded using the container's environment. If a variable cannot be resolved, the reference in the input string will be unchanged. The $(VAR_NAME) syntax can be escaped with a double $$, ie: $$(VAR_NAME). Escaped references will never be expanded, regardless of whether the variable exists or not. Cannot be updated. More info: http://kubernetes.io/docs/user-guide/containers#containers-and-commands",
 	"workingDir":             "Container's working directory. If not specified, the container runtime's default will be used, which might be configured in the container image. Cannot be updated.",
 	"ports":                  "List of ports to expose from the container. Exposing a port here gives the system additional information about the network connections a container uses, but is primarily informational. Not specifying a port here DOES NOT prevent that port from being exposed. Any port which is listening on the default \"0.0.0.0\" address inside a container will be accessible from the network. Cannot be updated.",
+	"envFrom":                "List of sources to populate environment variables in the container. The keys defined within a source must be a C_IDENTIFIER. An invalid key will prevent the container from starting. When a key exists in multiple sources, the value associated with the last source will take precedence. Values defined by an Env with a duplicate key will take precedence. Cannot be updated.",
 	"env":                    "List of environment variables to set in the container. Cannot be updated.",
 	"resources":              "Compute Resources required by this container. Cannot be updated. More info: http://kubernetes.io/docs/user-guide/persistent-volumes#resources",
 	"volumeMounts":           "Pod volumes to mount into the container's filesystem. Cannot be updated.",
@@ -424,6 +433,16 @@ func (EndpointsList) SwaggerDoc() map[string]string {
 	return map_EndpointsList
 }
 
+var map_EnvFromSource = map[string]string{
+	"":             "EnvFromSource represents the source of a set of ConfigMaps",
+	"prefix":       "An optional identifer to prepend to each key in the ConfigMap. Must be a C_IDENTIFIER.",
+	"configMapRef": "The ConfigMap to select from",
+}
+
+func (EnvFromSource) SwaggerDoc() map[string]string {
+	return map_EnvFromSource
+}
+
 var map_EnvVar = map[string]string{
 	"":          "EnvVar represents an environment variable present in a Container.",
 	"name":      "Name of the environment variable. Must be a C_IDENTIFIER.",
@@ -491,16 +510,6 @@ var map_ExecAction = map[string]string{
 
 func (ExecAction) SwaggerDoc() map[string]string {
 	return map_ExecAction
-}
-
-var map_ExportOptions = map[string]string{
-	"":       "ExportOptions is the query options to the standard REST get call.",
-	"export": "Should this value be exported.  Export strips fields that a user can not specify.",
-	"exact":  "Should the export be exact.  Exact export maintains cluster-specific fields like 'Namespace'",
-}
-
-func (ExportOptions) SwaggerDoc() map[string]string {
-	return map_ExportOptions
 }
 
 var map_FCVolumeSource = map[string]string{
@@ -708,7 +717,7 @@ var map_ListOptions = map[string]string{
 	"labelSelector":   "A selector to restrict the list of returned objects by their labels. Defaults to everything.",
 	"fieldSelector":   "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
 	"watch":           "Watch for changes to the described resources and return them as a stream of add, update, and remove notifications. Specify resourceVersion.",
-	"resourceVersion": "When specified with a watch call, shows changes that occur after that particular version of a resource. Defaults to changes from the beginning of history.",
+	"resourceVersion": "When specified with a watch call, shows changes that occur after that particular version of a resource. Defaults to changes from the beginning of history. When specified for list: - if unset, then the result is returned from remote storage based on quorum-read flag; - if it's 0, then we simply return what we currently have in cache, no guarantee; - if set to non zero, then the result is at least as fresh as given rv.",
 	"timeoutSeconds":  "Timeout for the list/watch call.",
 }
 
@@ -901,7 +910,7 @@ var map_NodeSpec = map[string]string{
 	"podCIDR":       "PodCIDR represents the pod IP range assigned to the node.",
 	"externalID":    "External ID of the node assigned by some machine database (e.g. a cloud provider). Deprecated.",
 	"providerID":    "ID of the node assigned by the cloud provider in the format: <ProviderName>://<ProviderSpecificNodeID>",
-	"unschedulable": "Unschedulable controls node schedulability of new pods. By default, node is schedulable. More info: http://releases.k8s.io/HEAD/docs/admin/node.md#manual-node-administration\"`",
+	"unschedulable": "Unschedulable controls node schedulability of new pods. By default, node is schedulable. More info: http://releases.k8s.io/HEAD/docs/admin/node.md#manual-node-administration",
 }
 
 func (NodeSpec) SwaggerDoc() map[string]string {
@@ -990,19 +999,6 @@ var map_ObjectReference = map[string]string{
 
 func (ObjectReference) SwaggerDoc() map[string]string {
 	return map_ObjectReference
-}
-
-var map_OwnerReference = map[string]string{
-	"":           "OwnerReference contains enough information to let you identify an owning object. Currently, an owning object must be in the same namespace, so there is no namespace field.",
-	"apiVersion": "API version of the referent.",
-	"kind":       "Kind of the referent. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#types-kinds",
-	"name":       "Name of the referent. More info: http://kubernetes.io/docs/user-guide/identifiers#names",
-	"uid":        "UID of the referent. More info: http://kubernetes.io/docs/user-guide/identifiers#uids",
-	"controller": "If true, this reference points to the managing controller.",
-}
-
-func (OwnerReference) SwaggerDoc() map[string]string {
-	return map_OwnerReference
 }
 
 var map_PersistentVolume = map[string]string{
@@ -1297,6 +1293,7 @@ var map_PodSpec = map[string]string{
 	"imagePullSecrets":              "ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images used by this PodSpec. If specified, these secrets will be passed to individual puller implementations for them to use. For example, in the case of docker, only DockerConfig type secrets are honored. More info: http://kubernetes.io/docs/user-guide/images#specifying-imagepullsecrets-on-a-pod",
 	"hostname":                      "Specifies the hostname of the Pod If not specified, the pod's hostname will be set to a system-defined value.",
 	"subdomain":                     "If specified, the fully qualified Pod hostname will be \"<hostname>.<subdomain>.<pod namespace>.svc.<cluster domain>\". If not specified, the pod will not have a domainname at all.",
+	"affinity":                      "If specified, the pod's scheduling constraints",
 }
 
 func (PodSpec) SwaggerDoc() map[string]string {
@@ -1313,6 +1310,7 @@ var map_PodStatus = map[string]string{
 	"podIP":             "IP address allocated to the pod. Routable at least within the cluster. Empty if not yet allocated.",
 	"startTime":         "RFC 3339 date and time at which the object was acknowledged by the Kubelet. This is before the Kubelet pulled the container image(s) for the pod.",
 	"containerStatuses": "The list has one entry per container in the manifest. Each entry is currently the output of `docker inspect`. More info: http://kubernetes.io/docs/user-guide/pod-states#container-statuses",
+	"qosClass":          "The Quality of Service (QOS) classification assigned to the pod based on resource requirements See PodQOSClass type for available QOS classes More info: https://github.com/kubernetes/kubernetes/blob/master/docs/design/resource-qos.md",
 }
 
 func (PodStatus) SwaggerDoc() map[string]string {

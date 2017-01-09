@@ -24,13 +24,13 @@ import (
 	"k8s.io/kubernetes/pkg/api/errors"
 	storeerr "k8s.io/kubernetes/pkg/api/errors/storage"
 	"k8s.io/kubernetes/pkg/api/rest"
-	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	extvalidation "k8s.io/kubernetes/pkg/apis/extensions/validation"
-	"k8s.io/kubernetes/pkg/registry/cachesize"
+	metav1 "k8s.io/kubernetes/pkg/apis/meta/v1"
+	genericapirequest "k8s.io/kubernetes/pkg/genericapiserver/api/request"
 	"k8s.io/kubernetes/pkg/registry/extensions/deployment"
 	"k8s.io/kubernetes/pkg/registry/generic"
-	"k8s.io/kubernetes/pkg/registry/generic/registry"
+	genericregistry "k8s.io/kubernetes/pkg/registry/generic/registry"
 	"k8s.io/kubernetes/pkg/runtime"
 	"k8s.io/kubernetes/pkg/storage"
 )
@@ -43,8 +43,8 @@ type DeploymentStorage struct {
 	Rollback   *RollbackREST
 }
 
-func NewStorage(opts generic.RESTOptions) DeploymentStorage {
-	deploymentRest, deploymentStatusRest, deploymentRollbackRest := NewREST(opts)
+func NewStorage(optsGetter generic.RESTOptionsGetter) DeploymentStorage {
+	deploymentRest, deploymentStatusRest, deploymentRollbackRest := NewREST(optsGetter)
 	deploymentRegistry := deployment.NewRegistry(deploymentRest)
 
 	return DeploymentStorage{
@@ -56,58 +56,29 @@ func NewStorage(opts generic.RESTOptions) DeploymentStorage {
 }
 
 type REST struct {
-	*registry.Store
+	*genericregistry.Store
 }
 
 // NewREST returns a RESTStorage object that will work against deployments.
-func NewREST(opts generic.RESTOptions) (*REST, *StatusREST, *RollbackREST) {
-	prefix := "/" + opts.ResourcePrefix
-
-	newListFunc := func() runtime.Object { return &extensions.DeploymentList{} }
-	storageInterface, dFunc := opts.Decorator(
-		opts.StorageConfig,
-		cachesize.GetWatchCacheSizeByResource(cachesize.Deployments),
-		&extensions.Deployment{},
-		prefix,
-		deployment.Strategy,
-		newListFunc,
-		storage.NoTriggerPublisher,
-	)
-
-	store := &registry.Store{
-		NewFunc: func() runtime.Object { return &extensions.Deployment{} },
-		// NewListFunc returns an object capable of storing results of an etcd list.
-		NewListFunc: newListFunc,
-		// Produces a path that etcd understands, to the root of the resource
-		// by combining the namespace in the context with the given prefix.
-		KeyRootFunc: func(ctx api.Context) string {
-			return registry.NamespaceKeyRootFunc(ctx, prefix)
-		},
-		// Produces a path that etcd understands, to the resource by combining
-		// the namespace in the context with the given prefix.
-		KeyFunc: func(ctx api.Context, name string) (string, error) {
-			return registry.NamespaceKeyFunc(ctx, prefix, name)
-		},
-		// Retrieve the name field of a deployment.
+func NewREST(optsGetter generic.RESTOptionsGetter) (*REST, *StatusREST, *RollbackREST) {
+	store := &genericregistry.Store{
+		NewFunc:     func() runtime.Object { return &extensions.Deployment{} },
+		NewListFunc: func() runtime.Object { return &extensions.DeploymentList{} },
 		ObjectNameFunc: func(obj runtime.Object) (string, error) {
 			return obj.(*extensions.Deployment).Name, nil
 		},
-		// Used to match objects based on labels/fields for list.
-		PredicateFunc:           deployment.MatchDeployment,
-		QualifiedResource:       extensions.Resource("deployments"),
-		EnableGarbageCollection: opts.EnableGarbageCollection,
-		DeleteCollectionWorkers: opts.DeleteCollectionWorkers,
+		PredicateFunc:     deployment.MatchDeployment,
+		QualifiedResource: extensions.Resource("deployments"),
 
-		// Used to validate deployment creation.
 		CreateStrategy: deployment.Strategy,
-
-		// Used to validate deployment updates.
 		UpdateStrategy: deployment.Strategy,
 		DeleteStrategy: deployment.Strategy,
-
-		Storage:     storageInterface,
-		DestroyFunc: dFunc,
 	}
+	options := &generic.StoreOptions{RESTOptions: optsGetter, AttrFunc: deployment.GetAttrs}
+	if err := store.CompleteWithOptions(options); err != nil {
+		panic(err) // TODO: Propagate error up
+	}
+
 	statusStore := *store
 	statusStore.UpdateStrategy = deployment.StatusStrategy
 	return &REST{store}, &StatusREST{store: &statusStore}, &RollbackREST{store: store}
@@ -115,7 +86,7 @@ func NewREST(opts generic.RESTOptions) (*REST, *StatusREST, *RollbackREST) {
 
 // StatusREST implements the REST endpoint for changing the status of a deployment
 type StatusREST struct {
-	store *registry.Store
+	store *genericregistry.Store
 }
 
 func (r *StatusREST) New() runtime.Object {
@@ -123,18 +94,18 @@ func (r *StatusREST) New() runtime.Object {
 }
 
 // Get retrieves the object from the storage. It is required to support Patch.
-func (r *StatusREST) Get(ctx api.Context, name string) (runtime.Object, error) {
-	return r.store.Get(ctx, name)
+func (r *StatusREST) Get(ctx genericapirequest.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
+	return r.store.Get(ctx, name, options)
 }
 
 // Update alters the status subset of an object.
-func (r *StatusREST) Update(ctx api.Context, name string, objInfo rest.UpdatedObjectInfo) (runtime.Object, bool, error) {
+func (r *StatusREST) Update(ctx genericapirequest.Context, name string, objInfo rest.UpdatedObjectInfo) (runtime.Object, bool, error) {
 	return r.store.Update(ctx, name, objInfo)
 }
 
 // RollbackREST implements the REST endpoint for initiating the rollback of a deployment
 type RollbackREST struct {
-	store *registry.Store
+	store *genericregistry.Store
 }
 
 // New creates a rollback
@@ -144,7 +115,7 @@ func (r *RollbackREST) New() runtime.Object {
 
 var _ = rest.Creater(&RollbackREST{})
 
-func (r *RollbackREST) Create(ctx api.Context, obj runtime.Object) (runtime.Object, error) {
+func (r *RollbackREST) Create(ctx genericapirequest.Context, obj runtime.Object) (runtime.Object, error) {
 	rollback, ok := obj.(*extensions.DeploymentRollback)
 	if !ok {
 		return nil, errors.NewBadRequest(fmt.Sprintf("not a DeploymentRollback: %#v", obj))
@@ -159,13 +130,13 @@ func (r *RollbackREST) Create(ctx api.Context, obj runtime.Object) (runtime.Obje
 	if err != nil {
 		return nil, err
 	}
-	return &unversioned.Status{
+	return &metav1.Status{
 		Message: fmt.Sprintf("rollback request for deployment %q succeeded", rollback.Name),
 		Code:    http.StatusOK,
 	}, nil
 }
 
-func (r *RollbackREST) rollbackDeployment(ctx api.Context, deploymentID string, config *extensions.RollbackConfig, annotations map[string]string) error {
+func (r *RollbackREST) rollbackDeployment(ctx genericapirequest.Context, deploymentID string, config *extensions.RollbackConfig, annotations map[string]string) error {
 	if _, err := r.setDeploymentRollback(ctx, deploymentID, config, annotations); err != nil {
 		err = storeerr.InterpretGetError(err, extensions.Resource("deployments"), deploymentID)
 		err = storeerr.InterpretUpdateError(err, extensions.Resource("deployments"), deploymentID)
@@ -177,7 +148,7 @@ func (r *RollbackREST) rollbackDeployment(ctx api.Context, deploymentID string, 
 	return nil
 }
 
-func (r *RollbackREST) setDeploymentRollback(ctx api.Context, deploymentID string, config *extensions.RollbackConfig, annotations map[string]string) (*extensions.Deployment, error) {
+func (r *RollbackREST) setDeploymentRollback(ctx genericapirequest.Context, deploymentID string, config *extensions.RollbackConfig, annotations map[string]string) (*extensions.Deployment, error) {
 	dKey, err := r.store.KeyFunc(ctx, deploymentID)
 	if err != nil {
 		return nil, err
@@ -213,8 +184,8 @@ func (r *ScaleREST) New() runtime.Object {
 	return &extensions.Scale{}
 }
 
-func (r *ScaleREST) Get(ctx api.Context, name string) (runtime.Object, error) {
-	deployment, err := r.registry.GetDeployment(ctx, name)
+func (r *ScaleREST) Get(ctx genericapirequest.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
+	deployment, err := r.registry.GetDeployment(ctx, name, options)
 	if err != nil {
 		return nil, errors.NewNotFound(extensions.Resource("deployments/scale"), name)
 	}
@@ -225,8 +196,8 @@ func (r *ScaleREST) Get(ctx api.Context, name string) (runtime.Object, error) {
 	return scale, nil
 }
 
-func (r *ScaleREST) Update(ctx api.Context, name string, objInfo rest.UpdatedObjectInfo) (runtime.Object, bool, error) {
-	deployment, err := r.registry.GetDeployment(ctx, name)
+func (r *ScaleREST) Update(ctx genericapirequest.Context, name string, objInfo rest.UpdatedObjectInfo) (runtime.Object, bool, error) {
+	deployment, err := r.registry.GetDeployment(ctx, name, &metav1.GetOptions{})
 	if err != nil {
 		return nil, false, errors.NewNotFound(extensions.Resource("deployments/scale"), name)
 	}

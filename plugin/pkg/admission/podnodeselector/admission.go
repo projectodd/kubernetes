@@ -26,9 +26,11 @@ import (
 	"k8s.io/kubernetes/pkg/admission"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/errors"
+	metav1 "k8s.io/kubernetes/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/client/cache"
-	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
 	"k8s.io/kubernetes/pkg/controller/informers"
+	kubeapiserveradmission "k8s.io/kubernetes/pkg/kubeapiserver/admission"
 	"k8s.io/kubernetes/pkg/labels"
 	"k8s.io/kubernetes/pkg/util/yaml"
 )
@@ -38,9 +40,9 @@ import (
 var NamespaceNodeSelectors = []string{"scheduler.alpha.kubernetes.io/node-selector"}
 
 func init() {
-	admission.RegisterPlugin("PodNodeSelector", func(client clientset.Interface, config io.Reader) (admission.Interface, error) {
+	admission.RegisterPlugin("PodNodeSelector", func(config io.Reader) (admission.Interface, error) {
 		pluginConfig := readConfig(config)
-		plugin := NewPodNodeSelector(client, pluginConfig.PodNodeSelectorPluginConfig)
+		plugin := NewPodNodeSelector(pluginConfig.PodNodeSelectorPluginConfig)
 		return plugin, nil
 	})
 }
@@ -48,11 +50,13 @@ func init() {
 // podNodeSelector is an implementation of admission.Interface.
 type podNodeSelector struct {
 	*admission.Handler
-	client            clientset.Interface
+	client            internalclientset.Interface
 	namespaceInformer cache.SharedIndexInformer
 	// global default node selector and namespace whitelists in a cluster.
 	clusterNodeSelectors map[string]string
 }
+
+var _ = kubeapiserveradmission.WantsInternalClientSet(&podNodeSelector{})
 
 type pluginConfig struct {
 	PodNodeSelectorPluginConfig map[string]string
@@ -156,16 +160,19 @@ func (p *podNodeSelector) Admit(a admission.Attributes) error {
 	return nil
 }
 
-func NewPodNodeSelector(client clientset.Interface, clusterNodeSelectors map[string]string) *podNodeSelector {
+func NewPodNodeSelector(clusterNodeSelectors map[string]string) *podNodeSelector {
 	return &podNodeSelector{
 		Handler:              admission.NewHandler(admission.Create),
-		client:               client,
 		clusterNodeSelectors: clusterNodeSelectors,
 	}
 }
 
+func (a *podNodeSelector) SetInternalClientSet(client internalclientset.Interface) {
+	a.client = client
+}
+
 func (p *podNodeSelector) SetInformerFactory(f informers.SharedInformerFactory) {
-	p.namespaceInformer = f.Namespaces().Informer()
+	p.namespaceInformer = f.InternalNamespaces().Informer()
 	p.SetReadyFunc(p.namespaceInformer.HasSynced)
 }
 
@@ -173,11 +180,14 @@ func (p *podNodeSelector) Validate() error {
 	if p.namespaceInformer == nil {
 		return fmt.Errorf("missing namespaceInformer")
 	}
+	if p.client == nil {
+		return fmt.Errorf("missing client")
+	}
 	return nil
 }
 
 func (p *podNodeSelector) defaultGetNamespace(name string) (*api.Namespace, error) {
-	namespace, err := p.client.Core().Namespaces().Get(name)
+	namespace, err := p.client.Core().Namespaces().Get(name, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("namespace %s does not exist", name)
 	}

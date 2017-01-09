@@ -14,17 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package watch
+package watch_test
 
 import (
 	"testing"
 
-	"k8s.io/kubernetes/pkg/api/unversioned"
+	"k8s.io/kubernetes/pkg/runtime/schema"
+	. "k8s.io/kubernetes/pkg/watch"
 )
 
 type testType string
 
-func (obj testType) GetObjectKind() unversioned.ObjectKind { return unversioned.EmptyObjectKind }
+func (obj testType) GetObjectKind() schema.ObjectKind { return schema.EmptyObjectKind }
 
 func TestFake(t *testing.T) {
 	f := NewFake()

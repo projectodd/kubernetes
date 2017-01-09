@@ -21,10 +21,10 @@ import (
 	"fmt"
 
 	"github.com/golang/glog"
-	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/apiserver/pkg/authentication/user"
 	apierrors "k8s.io/kubernetes/pkg/api/errors"
 	"k8s.io/kubernetes/pkg/apis/rbac"
-	"k8s.io/kubernetes/pkg/auth/user"
+	genericapirequest "k8s.io/kubernetes/pkg/genericapiserver/api/request"
 	"k8s.io/kubernetes/pkg/serviceaccount"
 	utilerrors "k8s.io/kubernetes/pkg/util/errors"
 )
@@ -41,14 +41,14 @@ type AuthorizationRuleResolver interface {
 }
 
 // ConfirmNoEscalation determines if the roles for a given user in a given namespace encompass the provided role.
-func ConfirmNoEscalation(ctx api.Context, ruleResolver AuthorizationRuleResolver, rules []rbac.PolicyRule) error {
+func ConfirmNoEscalation(ctx genericapirequest.Context, ruleResolver AuthorizationRuleResolver, rules []rbac.PolicyRule) error {
 	ruleResolutionErrors := []error{}
 
-	user, ok := api.UserFrom(ctx)
+	user, ok := genericapirequest.UserFrom(ctx)
 	if !ok {
 		return fmt.Errorf("no user on context")
 	}
-	namespace, _ := api.NamespaceFrom(ctx)
+	namespace, _ := genericapirequest.NamespaceFrom(ctx)
 
 	ownerRules, err := ruleResolver.RulesFor(user, namespace)
 	if err != nil {
@@ -59,7 +59,7 @@ func ConfirmNoEscalation(ctx api.Context, ruleResolver AuthorizationRuleResolver
 
 	ownerRightsCover, missingRights := Covers(ownerRules, rules)
 	if !ownerRightsCover {
-		user, _ := api.UserFrom(ctx)
+		user, _ := genericapirequest.UserFrom(ctx)
 		return apierrors.NewUnauthorized(fmt.Sprintf("attempt to grant extra privileges: %v user=%v ownerrules=%v ruleResolutionErrors=%v", missingRights, user, ownerRules, ruleResolutionErrors))
 	}
 	return nil
@@ -168,7 +168,7 @@ func appliesTo(user user.Info, bindingSubjects []rbac.Subject, namespace string)
 func appliesToUser(user user.Info, subject rbac.Subject, namespace string) bool {
 	switch subject.Kind {
 	case rbac.UserKind:
-		return subject.Name == rbac.UserAll || user.GetName() == subject.Name
+		return user.GetName() == subject.Name
 
 	case rbac.GroupKind:
 		return has(user.GetGroups(), subject.Name)
@@ -190,28 +190,29 @@ func appliesToUser(user user.Info, subject rbac.Subject, namespace string) bool 
 }
 
 // NewTestRuleResolver returns a rule resolver from lists of role objects.
-func NewTestRuleResolver(roles []*rbac.Role, roleBindings []*rbac.RoleBinding, clusterRoles []*rbac.ClusterRole, clusterRoleBindings []*rbac.ClusterRoleBinding) AuthorizationRuleResolver {
-	r := staticRoles{
+func NewTestRuleResolver(roles []*rbac.Role, roleBindings []*rbac.RoleBinding, clusterRoles []*rbac.ClusterRole, clusterRoleBindings []*rbac.ClusterRoleBinding) (AuthorizationRuleResolver, *StaticRoles) {
+	r := StaticRoles{
 		roles:               roles,
 		roleBindings:        roleBindings,
 		clusterRoles:        clusterRoles,
 		clusterRoleBindings: clusterRoleBindings,
 	}
-	return newMockRuleResolver(&r)
+	return newMockRuleResolver(&r), &r
 }
 
-func newMockRuleResolver(r *staticRoles) AuthorizationRuleResolver {
+func newMockRuleResolver(r *StaticRoles) AuthorizationRuleResolver {
 	return NewDefaultRuleResolver(r, r, r, r)
 }
 
-type staticRoles struct {
+// StaticRoles is a rule resolver that resolves from lists of role objects.
+type StaticRoles struct {
 	roles               []*rbac.Role
 	roleBindings        []*rbac.RoleBinding
 	clusterRoles        []*rbac.ClusterRole
 	clusterRoleBindings []*rbac.ClusterRoleBinding
 }
 
-func (r *staticRoles) GetRole(namespace, name string) (*rbac.Role, error) {
+func (r *StaticRoles) GetRole(namespace, name string) (*rbac.Role, error) {
 	if len(namespace) == 0 {
 		return nil, errors.New("must provide namespace when getting role")
 	}
@@ -223,7 +224,7 @@ func (r *staticRoles) GetRole(namespace, name string) (*rbac.Role, error) {
 	return nil, errors.New("role not found")
 }
 
-func (r *staticRoles) GetClusterRole(name string) (*rbac.ClusterRole, error) {
+func (r *StaticRoles) GetClusterRole(name string) (*rbac.ClusterRole, error) {
 	for _, clusterRole := range r.clusterRoles {
 		if clusterRole.Name == name {
 			return clusterRole, nil
@@ -232,7 +233,7 @@ func (r *staticRoles) GetClusterRole(name string) (*rbac.ClusterRole, error) {
 	return nil, errors.New("role not found")
 }
 
-func (r *staticRoles) ListRoleBindings(namespace string) ([]*rbac.RoleBinding, error) {
+func (r *StaticRoles) ListRoleBindings(namespace string) ([]*rbac.RoleBinding, error) {
 	if len(namespace) == 0 {
 		return nil, errors.New("must provide namespace when listing role bindings")
 	}
@@ -248,6 +249,6 @@ func (r *staticRoles) ListRoleBindings(namespace string) ([]*rbac.RoleBinding, e
 	return roleBindingList, nil
 }
 
-func (r *staticRoles) ListClusterRoleBindings() ([]*rbac.ClusterRoleBinding, error) {
+func (r *StaticRoles) ListClusterRoleBindings() ([]*rbac.ClusterRoleBinding, error) {
 	return r.clusterRoleBindings, nil
 }

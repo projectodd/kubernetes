@@ -21,13 +21,13 @@ import (
 
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/rest"
-	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/apps"
+	metav1 "k8s.io/kubernetes/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/fields"
+	genericapirequest "k8s.io/kubernetes/pkg/genericapiserver/api/request"
 	"k8s.io/kubernetes/pkg/labels"
 	"k8s.io/kubernetes/pkg/registry/generic"
 	"k8s.io/kubernetes/pkg/registry/registrytest"
-	"k8s.io/kubernetes/pkg/storage/etcd/etcdtest"
 	etcdtesting "k8s.io/kubernetes/pkg/storage/etcd/testing"
 )
 
@@ -40,7 +40,7 @@ func newStorage(t *testing.T) (*REST, *StatusREST, *etcdtesting.EtcdTestServer) 
 
 // createStatefulSet is a helper function that returns a StatefulSet with the updated resource version.
 func createStatefulSet(storage *REST, ps apps.StatefulSet, t *testing.T) (apps.StatefulSet, error) {
-	ctx := api.WithNamespace(api.NewContext(), ps.Namespace)
+	ctx := genericapirequest.WithNamespace(genericapirequest.NewContext(), ps.Namespace)
 	obj, err := storage.Create(ctx, &ps)
 	if err != nil {
 		t.Errorf("Failed to create StatefulSet, %v", err)
@@ -57,7 +57,7 @@ func validNewStatefulSet() *apps.StatefulSet {
 			Labels:    map[string]string{"a": "b"},
 		},
 		Spec: apps.StatefulSetSpec{
-			Selector: &unversioned.LabelSelector{MatchLabels: map[string]string{"a": "b"}},
+			Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"a": "b"}},
 			Template: api.PodTemplateSpec{
 				ObjectMeta: api.ObjectMeta{
 					Labels: map[string]string{"a": "b"},
@@ -100,8 +100,8 @@ func TestStatusUpdate(t *testing.T) {
 	storage, statusStorage, server := newStorage(t)
 	defer server.Terminate(t)
 	defer storage.Store.DestroyFunc()
-	ctx := api.WithNamespace(api.NewContext(), api.NamespaceDefault)
-	key := etcdtest.AddPrefix("/statefulsets/" + api.NamespaceDefault + "/foo")
+	ctx := genericapirequest.WithNamespace(genericapirequest.NewContext(), api.NamespaceDefault)
+	key := "/statefulsets/" + api.NamespaceDefault + "/foo"
 	validStatefulSet := validNewStatefulSet()
 	if err := storage.Storage.Create(ctx, key, validStatefulSet, nil, 0); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -119,7 +119,7 @@ func TestStatusUpdate(t *testing.T) {
 	if _, _, err := statusStorage.Update(ctx, update.Name, rest.DefaultUpdatedObjectInfo(&update, api.Scheme)); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	obj, err := storage.Get(ctx, "foo")
+	obj, err := storage.Get(ctx, "foo", &metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

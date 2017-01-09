@@ -27,15 +27,13 @@ import (
 	"k8s.io/kubernetes/pkg/admission"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/resource"
-	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/client/cache"
 	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/fake"
 	testcore "k8s.io/kubernetes/pkg/client/testing/core"
 	"k8s.io/kubernetes/pkg/quota"
-	"k8s.io/kubernetes/pkg/quota/evaluator/core"
 	"k8s.io/kubernetes/pkg/quota/generic"
 	"k8s.io/kubernetes/pkg/quota/install"
-	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/runtime/schema"
 	"k8s.io/kubernetes/pkg/util/sets"
 )
 
@@ -124,14 +122,21 @@ func TestPrettyPrint(t *testing.T) {
 // TestAdmissionIgnoresDelete verifies that the admission controller ignores delete operations
 func TestAdmissionIgnoresDelete(t *testing.T) {
 	kubeClient := fake.NewSimpleClientset()
+	indexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{"namespace": cache.MetaNamespaceIndexFunc})
 	stopCh := make(chan struct{})
 	defer close(stopCh)
-	handler, err := NewResourceQuota(kubeClient, install.NewRegistry(kubeClient, nil), 5, stopCh)
-	if err != nil {
-		t.Errorf("Unexpected error %v", err)
+
+	quotaAccessor, _ := newQuotaAccessor(kubeClient)
+	quotaAccessor.indexer = indexer
+	go quotaAccessor.Run(stopCh)
+	evaluator := NewQuotaEvaluator(quotaAccessor, install.NewRegistry(nil, nil), nil, 5, stopCh)
+
+	handler := &quotaAdmission{
+		Handler:   admission.NewHandler(admission.Create, admission.Update),
+		evaluator: evaluator,
 	}
 	namespace := "default"
-	err = handler.Admit(admission.NewAttributesRecord(nil, nil, api.Kind("Pod").WithVersion("version"), namespace, "name", api.Resource("pods").WithVersion("version"), "", admission.Delete, nil))
+	err := handler.Admit(admission.NewAttributesRecord(nil, nil, api.Kind("Pod").WithVersion("version"), namespace, "name", api.Resource("pods").WithVersion("version"), "", admission.Delete, nil))
 	if err != nil {
 		t.Errorf("ResourceQuota should admit all deletes: %v", err)
 	}
@@ -158,7 +163,7 @@ func TestAdmissionIgnoresSubresources(t *testing.T) {
 	quotaAccessor, _ := newQuotaAccessor(kubeClient)
 	quotaAccessor.indexer = indexer
 	go quotaAccessor.Run(stopCh)
-	evaluator := NewQuotaEvaluator(quotaAccessor, install.NewRegistry(kubeClient, nil), nil, 5, stopCh)
+	evaluator := NewQuotaEvaluator(quotaAccessor, install.NewRegistry(nil, nil), nil, 5, stopCh)
 
 	handler := &quotaAdmission{
 		Handler:   admission.NewHandler(admission.Create, admission.Update),
@@ -201,7 +206,7 @@ func TestAdmitBelowQuotaLimit(t *testing.T) {
 	quotaAccessor, _ := newQuotaAccessor(kubeClient)
 	quotaAccessor.indexer = indexer
 	go quotaAccessor.Run(stopCh)
-	evaluator := NewQuotaEvaluator(quotaAccessor, install.NewRegistry(kubeClient, nil), nil, 5, stopCh)
+	evaluator := NewQuotaEvaluator(quotaAccessor, install.NewRegistry(nil, nil), nil, 5, stopCh)
 
 	handler := &quotaAdmission{
 		Handler:   admission.NewHandler(admission.Create, admission.Update),
@@ -283,7 +288,7 @@ func TestAdmitHandlesOldObjects(t *testing.T) {
 	quotaAccessor, _ := newQuotaAccessor(kubeClient)
 	quotaAccessor.indexer = indexer
 	go quotaAccessor.Run(stopCh)
-	evaluator := NewQuotaEvaluator(quotaAccessor, install.NewRegistry(kubeClient, nil), nil, 5, stopCh)
+	evaluator := NewQuotaEvaluator(quotaAccessor, install.NewRegistry(nil, nil), nil, 5, stopCh)
 
 	handler := &quotaAdmission{
 		Handler:   admission.NewHandler(admission.Create, admission.Update),
@@ -379,7 +384,7 @@ func TestAdmitHandlesCreatingUpdates(t *testing.T) {
 	quotaAccessor, _ := newQuotaAccessor(kubeClient)
 	quotaAccessor.indexer = indexer
 	go quotaAccessor.Run(stopCh)
-	evaluator := NewQuotaEvaluator(quotaAccessor, install.NewRegistry(kubeClient, nil), nil, 5, stopCh)
+	evaluator := NewQuotaEvaluator(quotaAccessor, install.NewRegistry(nil, nil), nil, 5, stopCh)
 
 	handler := &quotaAdmission{
 		Handler:   admission.NewHandler(admission.Create, admission.Update),
@@ -472,7 +477,7 @@ func TestAdmitExceedQuotaLimit(t *testing.T) {
 	quotaAccessor, _ := newQuotaAccessor(kubeClient)
 	quotaAccessor.indexer = indexer
 	go quotaAccessor.Run(stopCh)
-	evaluator := NewQuotaEvaluator(quotaAccessor, install.NewRegistry(kubeClient, nil), nil, 5, stopCh)
+	evaluator := NewQuotaEvaluator(quotaAccessor, install.NewRegistry(nil, nil), nil, 5, stopCh)
 
 	handler := &quotaAdmission{
 		Handler:   admission.NewHandler(admission.Create, admission.Update),
@@ -515,7 +520,7 @@ func TestAdmitEnforceQuotaConstraints(t *testing.T) {
 	quotaAccessor, _ := newQuotaAccessor(kubeClient)
 	quotaAccessor.indexer = indexer
 	go quotaAccessor.Run(stopCh)
-	evaluator := NewQuotaEvaluator(quotaAccessor, install.NewRegistry(kubeClient, nil), nil, 5, stopCh)
+	evaluator := NewQuotaEvaluator(quotaAccessor, install.NewRegistry(nil, nil), nil, 5, stopCh)
 
 	handler := &quotaAdmission{
 		Handler:   admission.NewHandler(admission.Create, admission.Update),
@@ -568,7 +573,7 @@ func TestAdmitPodInNamespaceWithoutQuota(t *testing.T) {
 	quotaAccessor.indexer = indexer
 	quotaAccessor.liveLookupCache = liveLookupCache
 	go quotaAccessor.Run(stopCh)
-	evaluator := NewQuotaEvaluator(quotaAccessor, install.NewRegistry(kubeClient, nil), nil, 5, stopCh)
+	evaluator := NewQuotaEvaluator(quotaAccessor, install.NewRegistry(nil, nil), nil, 5, stopCh)
 
 	handler := &quotaAdmission{
 		Handler:   admission.NewHandler(admission.Create, admission.Update),
@@ -633,7 +638,7 @@ func TestAdmitBelowTerminatingQuotaLimit(t *testing.T) {
 	quotaAccessor, _ := newQuotaAccessor(kubeClient)
 	quotaAccessor.indexer = indexer
 	go quotaAccessor.Run(stopCh)
-	evaluator := NewQuotaEvaluator(quotaAccessor, install.NewRegistry(kubeClient, nil), nil, 5, stopCh)
+	evaluator := NewQuotaEvaluator(quotaAccessor, install.NewRegistry(nil, nil), nil, 5, stopCh)
 
 	handler := &quotaAdmission{
 		Handler:   admission.NewHandler(admission.Create, admission.Update),
@@ -737,7 +742,7 @@ func TestAdmitBelowBestEffortQuotaLimit(t *testing.T) {
 	quotaAccessor, _ := newQuotaAccessor(kubeClient)
 	quotaAccessor.indexer = indexer
 	go quotaAccessor.Run(stopCh)
-	evaluator := NewQuotaEvaluator(quotaAccessor, install.NewRegistry(kubeClient, nil), nil, 5, stopCh)
+	evaluator := NewQuotaEvaluator(quotaAccessor, install.NewRegistry(nil, nil), nil, 5, stopCh)
 
 	handler := &quotaAdmission{
 		Handler:   admission.NewHandler(admission.Create, admission.Update),
@@ -828,7 +833,7 @@ func TestAdmitBestEffortQuotaLimitIgnoresBurstable(t *testing.T) {
 	quotaAccessor, _ := newQuotaAccessor(kubeClient)
 	quotaAccessor.indexer = indexer
 	go quotaAccessor.Run(stopCh)
-	evaluator := NewQuotaEvaluator(quotaAccessor, install.NewRegistry(kubeClient, nil), nil, 5, stopCh)
+	evaluator := NewQuotaEvaluator(quotaAccessor, install.NewRegistry(nil, nil), nil, 5, stopCh)
 
 	handler := &quotaAdmission{
 		Handler:   admission.NewHandler(admission.Create, admission.Update),
@@ -896,46 +901,24 @@ func TestAdmissionSetsMissingNamespace(t *testing.T) {
 		ObjectMeta: api.ObjectMeta{Name: "quota", Namespace: namespace, ResourceVersion: "124"},
 		Status: api.ResourceQuotaStatus{
 			Hard: api.ResourceList{
-				api.ResourceCPU: resource.MustParse("3"),
+				api.ResourcePods: resource.MustParse("3"),
 			},
 			Used: api.ResourceList{
-				api.ResourceCPU: resource.MustParse("1"),
+				api.ResourcePods: resource.MustParse("1"),
 			},
 		},
 	}
 	kubeClient := fake.NewSimpleClientset(resourceQuota)
 	indexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{"namespace": cache.MetaNamespaceIndexFunc})
 
-	computeResources := []api.ResourceName{
-		api.ResourcePods,
-		api.ResourceCPU,
+	// create a dummy evaluator so we can trigger quota
+	podEvaluator := &generic.ObjectCountEvaluator{
+		AllowCreateOnUpdate: false,
+		InternalGroupKind:   api.Kind("Pod"),
+		ResourceName:        api.ResourcePods,
 	}
-
-	usageFunc := func(object runtime.Object) api.ResourceList {
-		pod, ok := object.(*api.Pod)
-		if !ok {
-			t.Fatalf("Expected pod, got %T", object)
-		}
-		if pod.Namespace != namespace {
-			t.Errorf("Expected pod with different namespace: %q != %q", pod.Namespace, namespace)
-		}
-		return core.PodUsageFunc(pod)
-	}
-
-	podEvaluator := &generic.GenericEvaluator{
-		Name:              "Test-Evaluator.Pod",
-		InternalGroupKind: api.Kind("Pod"),
-		InternalOperationResources: map[admission.Operation][]api.ResourceName{
-			admission.Create: computeResources,
-		},
-		ConstraintsFunc:      core.PodConstraintsFunc,
-		MatchedResourceNames: computeResources,
-		MatchesScopeFunc:     core.PodMatchesScopeFunc,
-		UsageFunc:            usageFunc,
-	}
-
 	registry := &generic.GenericRegistry{
-		InternalEvaluators: map[unversioned.GroupKind]quota.Evaluator{
+		InternalEvaluators: map[schema.GroupKind]quota.Evaluator{
 			podEvaluator.GroupKind(): podEvaluator,
 		},
 	}
@@ -945,7 +928,7 @@ func TestAdmissionSetsMissingNamespace(t *testing.T) {
 	quotaAccessor, _ := newQuotaAccessor(kubeClient)
 	quotaAccessor.indexer = indexer
 	go quotaAccessor.Run(stopCh)
-	evaluator := NewQuotaEvaluator(quotaAccessor, install.NewRegistry(kubeClient, nil), nil, 5, stopCh)
+	evaluator := NewQuotaEvaluator(quotaAccessor, install.NewRegistry(nil, nil), nil, 5, stopCh)
 	evaluator.(*quotaEvaluator).registry = registry
 
 	handler := &quotaAdmission{
@@ -990,7 +973,7 @@ func TestAdmitRejectsNegativeUsage(t *testing.T) {
 	quotaAccessor, _ := newQuotaAccessor(kubeClient)
 	quotaAccessor.indexer = indexer
 	go quotaAccessor.Run(stopCh)
-	evaluator := NewQuotaEvaluator(quotaAccessor, install.NewRegistry(kubeClient, nil), nil, 5, stopCh)
+	evaluator := NewQuotaEvaluator(quotaAccessor, install.NewRegistry(nil, nil), nil, 5, stopCh)
 
 	handler := &quotaAdmission{
 		Handler:   admission.NewHandler(admission.Create, admission.Update),
@@ -1035,7 +1018,7 @@ func TestAdmitWhenUnrelatedResourceExceedsQuota(t *testing.T) {
 	quotaAccessor, _ := newQuotaAccessor(kubeClient)
 	quotaAccessor.indexer = indexer
 	go quotaAccessor.Run(stopCh)
-	evaluator := NewQuotaEvaluator(quotaAccessor, install.NewRegistry(kubeClient, nil), nil, 5, stopCh)
+	evaluator := NewQuotaEvaluator(quotaAccessor, install.NewRegistry(nil, nil), nil, 5, stopCh)
 
 	handler := &quotaAdmission{
 		Handler:   admission.NewHandler(admission.Create, admission.Update),

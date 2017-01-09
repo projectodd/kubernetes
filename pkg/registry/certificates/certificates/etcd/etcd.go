@@ -17,64 +17,38 @@ limitations under the License.
 package etcd
 
 import (
-	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/rest"
 	"k8s.io/kubernetes/pkg/apis/certificates"
-	"k8s.io/kubernetes/pkg/fields"
-	"k8s.io/kubernetes/pkg/labels"
-	"k8s.io/kubernetes/pkg/registry/cachesize"
+	genericapirequest "k8s.io/kubernetes/pkg/genericapiserver/api/request"
 	csrregistry "k8s.io/kubernetes/pkg/registry/certificates/certificates"
 	"k8s.io/kubernetes/pkg/registry/generic"
-	"k8s.io/kubernetes/pkg/registry/generic/registry"
+	genericregistry "k8s.io/kubernetes/pkg/registry/generic/registry"
 	"k8s.io/kubernetes/pkg/runtime"
-	"k8s.io/kubernetes/pkg/storage"
 )
 
 // REST implements a RESTStorage for CertificateSigningRequest against etcd
 type REST struct {
-	*registry.Store
+	*genericregistry.Store
 }
 
 // NewREST returns a registry which will store CertificateSigningRequest in the given helper
-func NewREST(opts generic.RESTOptions) (*REST, *StatusREST, *ApprovalREST) {
-	prefix := "/" + opts.ResourcePrefix
-
-	newListFunc := func() runtime.Object { return &certificates.CertificateSigningRequestList{} }
-	storageInterface, dFunc := opts.Decorator(
-		opts.StorageConfig,
-		cachesize.GetWatchCacheSizeByResource(cachesize.CertificateSigningRequests),
-		&certificates.CertificateSigningRequest{},
-		prefix,
-		csrregistry.Strategy,
-		newListFunc,
-		storage.NoTriggerPublisher,
-	)
-
-	store := &registry.Store{
+func NewREST(optsGetter generic.RESTOptionsGetter) (*REST, *StatusREST, *ApprovalREST) {
+	store := &genericregistry.Store{
 		NewFunc:     func() runtime.Object { return &certificates.CertificateSigningRequest{} },
-		NewListFunc: newListFunc,
-		KeyRootFunc: func(ctx api.Context) string {
-			return prefix
-		},
-		KeyFunc: func(ctx api.Context, id string) (string, error) {
-			return registry.NoNamespaceKeyFunc(ctx, prefix, id)
-		},
+		NewListFunc: func() runtime.Object { return &certificates.CertificateSigningRequestList{} },
 		ObjectNameFunc: func(obj runtime.Object) (string, error) {
 			return obj.(*certificates.CertificateSigningRequest).Name, nil
 		},
-		PredicateFunc: func(label labels.Selector, field fields.Selector) storage.SelectionPredicate {
-			return csrregistry.Matcher(label, field)
-		},
-		QualifiedResource:       certificates.Resource("certificatesigningrequests"),
-		EnableGarbageCollection: opts.EnableGarbageCollection,
-		DeleteCollectionWorkers: opts.DeleteCollectionWorkers,
+		PredicateFunc:     csrregistry.Matcher,
+		QualifiedResource: certificates.Resource("certificatesigningrequests"),
 
 		CreateStrategy: csrregistry.Strategy,
 		UpdateStrategy: csrregistry.Strategy,
 		DeleteStrategy: csrregistry.Strategy,
-
-		Storage:     storageInterface,
-		DestroyFunc: dFunc,
+	}
+	options := &generic.StoreOptions{RESTOptions: optsGetter, AttrFunc: csrregistry.GetAttrs}
+	if err := store.CompleteWithOptions(options); err != nil {
+		panic(err) // TODO: Propagate error up
 	}
 
 	// Subresources use the same store and creation strategy, which only
@@ -91,7 +65,7 @@ func NewREST(opts generic.RESTOptions) (*REST, *StatusREST, *ApprovalREST) {
 
 // StatusREST implements the REST endpoint for changing the status of a CSR.
 type StatusREST struct {
-	store *registry.Store
+	store *genericregistry.Store
 }
 
 func (r *StatusREST) New() runtime.Object {
@@ -99,13 +73,13 @@ func (r *StatusREST) New() runtime.Object {
 }
 
 // Update alters the status subset of an object.
-func (r *StatusREST) Update(ctx api.Context, name string, objInfo rest.UpdatedObjectInfo) (runtime.Object, bool, error) {
+func (r *StatusREST) Update(ctx genericapirequest.Context, name string, objInfo rest.UpdatedObjectInfo) (runtime.Object, bool, error) {
 	return r.store.Update(ctx, name, objInfo)
 }
 
 // ApprovalREST implements the REST endpoint for changing the approval state of a CSR.
 type ApprovalREST struct {
-	store *registry.Store
+	store *genericregistry.Store
 }
 
 func (r *ApprovalREST) New() runtime.Object {
@@ -113,6 +87,6 @@ func (r *ApprovalREST) New() runtime.Object {
 }
 
 // Update alters the approval subset of an object.
-func (r *ApprovalREST) Update(ctx api.Context, name string, objInfo rest.UpdatedObjectInfo) (runtime.Object, bool, error) {
+func (r *ApprovalREST) Update(ctx genericapirequest.Context, name string, objInfo rest.UpdatedObjectInfo) (runtime.Object, bool, error) {
 	return r.store.Update(ctx, name, objInfo)
 }

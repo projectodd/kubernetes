@@ -23,7 +23,9 @@ import (
 	"k8s.io/kubernetes/pkg/api/errors"
 	"k8s.io/kubernetes/pkg/api/rest"
 	"k8s.io/kubernetes/pkg/apis/autoscaling"
+	metav1 "k8s.io/kubernetes/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/fields"
+	genericapirequest "k8s.io/kubernetes/pkg/genericapiserver/api/request"
 	"k8s.io/kubernetes/pkg/labels"
 	"k8s.io/kubernetes/pkg/registry/generic"
 	"k8s.io/kubernetes/pkg/registry/registrytest"
@@ -39,14 +41,19 @@ const (
 
 func newStorage(t *testing.T) (ControllerStorage, *etcdtesting.EtcdTestServer) {
 	etcdStorage, server := registrytest.NewEtcdStorage(t, "")
-	restOptions := generic.RESTOptions{StorageConfig: etcdStorage, Decorator: generic.UndecoratedStorage, DeleteCollectionWorkers: 1}
+	restOptions := generic.RESTOptions{
+		StorageConfig:           etcdStorage,
+		Decorator:               generic.UndecoratedStorage,
+		DeleteCollectionWorkers: 1,
+		ResourcePrefix:          "replicationcontrollers",
+	}
 	storage := NewStorage(restOptions)
 	return storage, server
 }
 
 // createController is a helper function that returns a controller with the updated resource version.
 func createController(storage *REST, rc api.ReplicationController, t *testing.T) (api.ReplicationController, error) {
-	ctx := api.WithNamespace(api.NewContext(), rc.Namespace)
+	ctx := genericapirequest.WithNamespace(genericapirequest.NewContext(), rc.Namespace)
 	obj, err := storage.Create(ctx, &rc)
 	if err != nil {
 		t.Errorf("Failed to create controller, %v", err)
@@ -149,9 +156,9 @@ func TestGenerationNumber(t *testing.T) {
 	modifiedSno := *validNewController()
 	modifiedSno.Generation = 100
 	modifiedSno.Status.ObservedGeneration = 10
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	rc, err := createController(storage.Controller, modifiedSno, t)
-	ctrl, err := storage.Controller.Get(ctx, rc.Name)
+	ctrl, err := storage.Controller.Get(ctx, rc.Name, &metav1.GetOptions{})
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -168,7 +175,7 @@ func TestGenerationNumber(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
-	ctrl, err = storage.Controller.Get(ctx, rc.Name)
+	ctrl, err = storage.Controller.Get(ctx, rc.Name, &metav1.GetOptions{})
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -183,7 +190,7 @@ func TestGenerationNumber(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
-	ctrl, err = storage.Controller.Get(ctx, rc.Name)
+	ctrl, err = storage.Controller.Get(ctx, rc.Name, &metav1.GetOptions{})
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -249,7 +256,7 @@ func TestScaleGet(t *testing.T) {
 	defer server.Terminate(t)
 	defer storage.Controller.Store.DestroyFunc()
 
-	ctx := api.WithNamespace(api.NewContext(), namespace)
+	ctx := genericapirequest.WithNamespace(genericapirequest.NewContext(), namespace)
 	rc, err := createController(storage.Controller, *validController, t)
 	if err != nil {
 		t.Fatalf("error setting new replication controller %v: %v", *validController, err)
@@ -271,7 +278,7 @@ func TestScaleGet(t *testing.T) {
 			Selector: labels.SelectorFromSet(validController.Spec.Template.Labels).String(),
 		},
 	}
-	obj, err := storage.Scale.Get(ctx, name)
+	obj, err := storage.Scale.Get(ctx, name, &metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("error fetching scale for %s: %v", name, err)
 	}
@@ -286,7 +293,7 @@ func TestScaleUpdate(t *testing.T) {
 	defer server.Terminate(t)
 	defer storage.Controller.Store.DestroyFunc()
 
-	ctx := api.WithNamespace(api.NewContext(), namespace)
+	ctx := genericapirequest.WithNamespace(genericapirequest.NewContext(), namespace)
 	rc, err := createController(storage.Controller, *validController, t)
 	if err != nil {
 		t.Fatalf("error setting new replication controller %v: %v", *validController, err)
@@ -302,7 +309,7 @@ func TestScaleUpdate(t *testing.T) {
 	if _, _, err := storage.Scale.Update(ctx, update.Name, rest.DefaultUpdatedObjectInfo(&update, api.Scheme)); err != nil {
 		t.Fatalf("error updating scale %v: %v", update, err)
 	}
-	obj, err := storage.Scale.Get(ctx, name)
+	obj, err := storage.Scale.Get(ctx, name, &metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("error fetching scale for %s: %v", name, err)
 	}

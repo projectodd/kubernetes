@@ -21,13 +21,13 @@ import (
 
 	"k8s.io/kubernetes/pkg/admission"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/unversioned"
+	metav1 "k8s.io/kubernetes/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/runtime"
 )
 
 // ensures the hard PodAntiAffinity is denied if it defines TopologyKey other than kubernetes.io/hostname.
 func TestInterPodAffinityAdmission(t *testing.T) {
-	handler := NewInterPodAntiAffinity(nil)
+	handler := NewInterPodAntiAffinity()
 	pod := api.Pod{
 		Spec: api.PodSpec{},
 	}
@@ -92,7 +92,7 @@ func TestInterPodAffinityAdmission(t *testing.T) {
 								}]
 							},
 							"namespaces": [],
-							"topologyKey": "` + unversioned.LabelHostname + `"
+							"topologyKey": "` + metav1.LabelHostname + `"
 						}]
 					}}`,
 			},
@@ -112,7 +112,7 @@ func TestInterPodAffinityAdmission(t *testing.T) {
 								}]
 							},
 							"namespaces":[],
-							"topologyKey": "` + unversioned.LabelHostname + `"
+							"topologyKey": "` + metav1.LabelHostname + `"
 						}]
 					}}`,
 			},
@@ -173,7 +173,7 @@ func TestInterPodAffinityAdmission(t *testing.T) {
 								}]
 							},
 							"namespaces":[],
-							"topologyKey": "` + unversioned.LabelHostname + `"
+							"topologyKey": "` + metav1.LabelHostname + `"
 						},
 						{
 							"labelSelector": {
@@ -195,7 +195,7 @@ func TestInterPodAffinityAdmission(t *testing.T) {
 								}]
 							},
 							"namespaces": [],
-							"topologyKey": "` + unversioned.LabelHostname + `"
+							"topologyKey": "` + metav1.LabelHostname + `"
 						}]
 					}}`,
 			},
@@ -226,7 +226,7 @@ func TestInterPodAffinityAdmission(t *testing.T) {
 	}
 }
 func TestHandles(t *testing.T) {
-	handler := NewInterPodAntiAffinity(nil)
+	handler := NewInterPodAntiAffinity()
 	tests := map[admission.Operation]bool{
 		admission.Update:  true,
 		admission.Create:  true,

@@ -20,13 +20,14 @@ import (
 	"testing"
 
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/unversioned"
+	metav1 "k8s.io/kubernetes/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/apis/policy"
+	genericapirequest "k8s.io/kubernetes/pkg/genericapiserver/api/request"
 	"k8s.io/kubernetes/pkg/util/intstr"
 )
 
 func TestPodDisruptionBudgetStrategy(t *testing.T) {
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	if !Strategy.NamespaceScoped() {
 		t.Errorf("PodDisruptionBudget must be namespace scoped")
 	}
@@ -39,7 +40,7 @@ func TestPodDisruptionBudgetStrategy(t *testing.T) {
 		ObjectMeta: api.ObjectMeta{Name: "abc", Namespace: api.NamespaceDefault},
 		Spec: policy.PodDisruptionBudgetSpec{
 			MinAvailable: intstr.FromInt(3),
-			Selector:     &unversioned.LabelSelector{MatchLabels: validSelector},
+			Selector:     &metav1.LabelSelector{MatchLabels: validSelector},
 		},
 	}
 
@@ -68,7 +69,7 @@ func TestPodDisruptionBudgetStrategy(t *testing.T) {
 	}
 
 	// Changing the selector?  No.
-	newPdb.Spec.Selector = &unversioned.LabelSelector{MatchLabels: map[string]string{"a": "bar"}}
+	newPdb.Spec.Selector = &metav1.LabelSelector{MatchLabels: map[string]string{"a": "bar"}}
 	Strategy.PrepareForUpdate(ctx, newPdb, pdb)
 	errs = Strategy.ValidateUpdate(ctx, newPdb, pdb)
 	if len(errs) == 0 {
@@ -86,7 +87,7 @@ func TestPodDisruptionBudgetStrategy(t *testing.T) {
 }
 
 func TestPodDisruptionBudgetStatusStrategy(t *testing.T) {
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	if !StatusStrategy.NamespaceScoped() {
 		t.Errorf("PodDisruptionBudgetStatus must be namespace scoped")
 	}
@@ -97,7 +98,7 @@ func TestPodDisruptionBudgetStatusStrategy(t *testing.T) {
 	oldPdb := &policy.PodDisruptionBudget{
 		ObjectMeta: api.ObjectMeta{Name: "abc", Namespace: api.NamespaceDefault, ResourceVersion: "10"},
 		Spec: policy.PodDisruptionBudgetSpec{
-			Selector:     &unversioned.LabelSelector{MatchLabels: validSelector},
+			Selector:     &metav1.LabelSelector{MatchLabels: validSelector},
 			MinAvailable: intstr.FromInt(3),
 		},
 		Status: policy.PodDisruptionBudgetStatus{
@@ -110,7 +111,7 @@ func TestPodDisruptionBudgetStatusStrategy(t *testing.T) {
 	newPdb := &policy.PodDisruptionBudget{
 		ObjectMeta: api.ObjectMeta{Name: "abc", Namespace: api.NamespaceDefault, ResourceVersion: "9"},
 		Spec: policy.PodDisruptionBudgetSpec{
-			Selector:     &unversioned.LabelSelector{MatchLabels: validSelector},
+			Selector:     &metav1.LabelSelector{MatchLabels: validSelector},
 			MinAvailable: intstr.FromInt(2),
 		},
 		Status: policy.PodDisruptionBudgetStatus{

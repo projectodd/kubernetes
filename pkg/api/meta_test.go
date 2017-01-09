@@ -24,10 +24,11 @@ import (
 
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/meta"
-	"k8s.io/kubernetes/pkg/api/meta/metatypes"
-	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apimachinery/registered"
+	metav1 "k8s.io/kubernetes/pkg/apis/meta/v1"
+	genericapirequest "k8s.io/kubernetes/pkg/genericapiserver/api/request"
 	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/runtime/schema"
 	"k8s.io/kubernetes/pkg/util/uuid"
 )
 
@@ -35,7 +36,7 @@ var _ meta.Object = &api.ObjectMeta{}
 
 // TestFillObjectMetaSystemFields validates that system populated fields are set on an object
 func TestFillObjectMetaSystemFields(t *testing.T) {
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	resource := api.ObjectMeta{}
 	api.FillObjectMetaSystemFields(ctx, &resource)
 	if resource.CreationTimestamp.Time.IsZero() {
@@ -45,7 +46,7 @@ func TestFillObjectMetaSystemFields(t *testing.T) {
 	}
 	// verify we can inject a UID
 	uid := uuid.NewUUID()
-	ctx = api.WithUID(ctx, uid)
+	ctx = genericapirequest.WithUID(ctx, uid)
 	resource = api.ObjectMeta{}
 	api.FillObjectMetaSystemFields(ctx, &resource)
 	if resource.UID != uid {
@@ -55,7 +56,7 @@ func TestFillObjectMetaSystemFields(t *testing.T) {
 
 // TestHasObjectMetaSystemFieldValues validates that true is returned if and only if all fields are populated
 func TestHasObjectMetaSystemFieldValues(t *testing.T) {
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	resource := api.ObjectMeta{}
 	if api.HasObjectMetaSystemFieldValues(&resource) {
 		t.Errorf("the resource does not have all fields yet populated, but incorrectly reports it does")
@@ -66,12 +67,12 @@ func TestHasObjectMetaSystemFieldValues(t *testing.T) {
 	}
 }
 
-func getObjectMetaAndOwnerReferences() (objectMeta api.ObjectMeta, metaOwnerReferences []metatypes.OwnerReference) {
+func getObjectMetaAndOwnerReferences() (objectMeta api.ObjectMeta, metaOwnerReferences []metav1.OwnerReference) {
 	fuzz.New().NilChance(.5).NumElements(1, 5).Fuzz(&objectMeta)
 	references := objectMeta.OwnerReferences
-	metaOwnerReferences = make([]metatypes.OwnerReference, 0)
+	metaOwnerReferences = make([]metav1.OwnerReference, 0)
 	for i := 0; i < len(references); i++ {
-		metaOwnerReferences = append(metaOwnerReferences, metatypes.OwnerReference{
+		metaOwnerReferences = append(metaOwnerReferences, metav1.OwnerReference{
 			Kind:       references[i].Kind,
 			Name:       references[i].Name,
 			UID:        references[i].UID,
@@ -80,7 +81,7 @@ func getObjectMetaAndOwnerReferences() (objectMeta api.ObjectMeta, metaOwnerRefe
 		})
 	}
 	if len(references) == 0 {
-		objectMeta.OwnerReferences = make([]api.OwnerReference, 0)
+		objectMeta.OwnerReferences = make([]metav1.OwnerReference, 0)
 	}
 	return objectMeta, metaOwnerReferences
 }
@@ -112,8 +113,8 @@ func TestAccessOwnerReferences(t *testing.T) {
 
 func TestAccessorImplementations(t *testing.T) {
 	for _, gv := range registered.EnabledVersions() {
-		internalGV := unversioned.GroupVersion{Group: gv.Group, Version: runtime.APIVersionInternal}
-		for _, gv := range []unversioned.GroupVersion{gv, internalGV} {
+		internalGV := schema.GroupVersion{Group: gv.Group, Version: runtime.APIVersionInternal}
+		for _, gv := range []schema.GroupVersion{gv, internalGV} {
 			for kind, knownType := range api.Scheme.KnownTypes(gv) {
 				value := reflect.New(knownType)
 				obj := value.Interface()
@@ -165,7 +166,7 @@ func TestAccessorImplementations(t *testing.T) {
 						continue
 					}
 				default:
-					if _, ok := obj.(unversioned.ListMetaAccessor); ok {
+					if _, ok := obj.(metav1.ListMetaAccessor); ok {
 						continue
 					}
 					if _, ok := value.Elem().Type().FieldByName("ObjectMeta"); ok {

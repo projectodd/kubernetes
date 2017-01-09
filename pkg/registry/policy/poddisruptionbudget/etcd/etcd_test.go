@@ -21,13 +21,13 @@ import (
 
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/rest"
-	"k8s.io/kubernetes/pkg/api/unversioned"
+	metav1 "k8s.io/kubernetes/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/apis/policy"
 	"k8s.io/kubernetes/pkg/fields"
+	genericapirequest "k8s.io/kubernetes/pkg/genericapiserver/api/request"
 	"k8s.io/kubernetes/pkg/labels"
 	"k8s.io/kubernetes/pkg/registry/generic"
 	"k8s.io/kubernetes/pkg/registry/registrytest"
-	"k8s.io/kubernetes/pkg/storage/etcd/etcdtest"
 	etcdtesting "k8s.io/kubernetes/pkg/storage/etcd/testing"
 	"k8s.io/kubernetes/pkg/util/intstr"
 )
@@ -41,7 +41,7 @@ func newStorage(t *testing.T) (*REST, *StatusREST, *etcdtesting.EtcdTestServer) 
 
 // createPodDisruptionBudget is a helper function that returns a PodDisruptionBudget with the updated resource version.
 func createPodDisruptionBudget(storage *REST, pdb policy.PodDisruptionBudget, t *testing.T) (policy.PodDisruptionBudget, error) {
-	ctx := api.WithNamespace(api.NewContext(), pdb.Namespace)
+	ctx := genericapirequest.WithNamespace(genericapirequest.NewContext(), pdb.Namespace)
 	obj, err := storage.Create(ctx, &pdb)
 	if err != nil {
 		t.Errorf("Failed to create PodDisruptionBudget, %v", err)
@@ -58,7 +58,7 @@ func validNewPodDisruptionBudget() *policy.PodDisruptionBudget {
 			Labels:    map[string]string{"a": "b"},
 		},
 		Spec: policy.PodDisruptionBudgetSpec{
-			Selector:     &unversioned.LabelSelector{MatchLabels: map[string]string{"a": "b"}},
+			Selector:     &metav1.LabelSelector{MatchLabels: map[string]string{"a": "b"}},
 			MinAvailable: intstr.FromInt(7),
 		},
 		Status: policy.PodDisruptionBudgetStatus{},
@@ -85,14 +85,14 @@ func TestStatusUpdate(t *testing.T) {
 	storage, statusStorage, server := newStorage(t)
 	defer server.Terminate(t)
 	defer storage.Store.DestroyFunc()
-	ctx := api.WithNamespace(api.NewContext(), api.NamespaceDefault)
-	key := etcdtest.AddPrefix("/poddisruptionbudgets/" + api.NamespaceDefault + "/foo")
+	ctx := genericapirequest.WithNamespace(genericapirequest.NewContext(), api.NamespaceDefault)
+	key := "/poddisruptionbudgets/" + api.NamespaceDefault + "/foo"
 	validPodDisruptionBudget := validNewPodDisruptionBudget()
 	if err := storage.Storage.Create(ctx, key, validPodDisruptionBudget, nil, 0); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	obj, err := storage.Get(ctx, "foo")
+	obj, err := storage.Get(ctx, "foo", &metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("failed to get pdb: %v", err)
 	}
@@ -111,7 +111,7 @@ func TestStatusUpdate(t *testing.T) {
 	if _, _, err := statusStorage.Update(ctx, update.Name, rest.DefaultUpdatedObjectInfo(&update, api.Scheme)); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	obj, err = storage.Get(ctx, "foo")
+	obj, err = storage.Get(ctx, "foo", &metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

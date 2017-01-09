@@ -4,10 +4,7 @@ licenses(["notice"])
 
 load(
     "@io_bazel_rules_go//go:def.bzl",
-    "go_binary",
     "go_library",
-    "go_test",
-    "cgo_library",
 )
 
 go_library(
@@ -24,9 +21,9 @@ go_library(
     ],
     tags = ["automanaged"],
     deps = [
-        "//pkg/api/unversioned:go_default_library",
-        "//pkg/apiserver:go_default_library",
-        "//pkg/apiserver/metrics:go_default_library",
+        "//pkg/apis/meta/v1:go_default_library",
+        "//pkg/genericapiserver/api/handlers/responsewriters:go_default_library",
+        "//pkg/genericapiserver/api/metrics:go_default_library",
         "//pkg/genericapiserver/mux:go_default_library",
         "//pkg/genericapiserver/openapi:go_default_library",
         "//pkg/genericapiserver/openapi/common:go_default_library",
@@ -41,13 +38,18 @@ go_library(
     ],
 )
 
-go_test(
-    name = "go_default_test",
-    srcs = ["swagger_test.go"],
-    library = "go_default_library",
+filegroup(
+    name = "package-srcs",
+    srcs = glob(["**"]),
     tags = ["automanaged"],
-    deps = [
-        "//pkg/genericapiserver/mux:go_default_library",
-        "//vendor:github.com/stretchr/testify/assert",
+    visibility = ["//visibility:private"],
+)
+
+filegroup(
+    name = "all-srcs",
+    srcs = [
+        ":package-srcs",
+        "//pkg/genericapiserver/routes/data/swagger:all-srcs",
     ],
+    tags = ["automanaged"],
 )

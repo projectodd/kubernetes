@@ -17,22 +17,18 @@ limitations under the License.
 package rbac
 
 import (
-	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/auth/user"
+	"k8s.io/apiserver/pkg/authentication/user"
+	genericapirequest "k8s.io/kubernetes/pkg/genericapiserver/api/request"
 )
 
-func EscalationAllowed(ctx api.Context, superUser string) bool {
-	u, ok := api.UserFrom(ctx)
+func EscalationAllowed(ctx genericapirequest.Context) bool {
+	u, ok := genericapirequest.UserFrom(ctx)
 	if !ok {
 		// the only way to be without a user is to either have no authenticators by explicitly saying that's your preference
 		// or to be connecting via the insecure port, in which case this logically doesn't apply
 		return true
 	}
 
-	// check to see if this subject is allowed to escalate
-	if len(superUser) != 0 && u.GetName() == superUser {
-		return true
-	}
 	// system:masters is special because the API server uses it for privileged loopback connections
 	// therefore we know that a member of system:masters can always do anything
 	for _, group := range u.GetGroups() {

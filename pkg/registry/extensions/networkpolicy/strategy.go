@@ -24,6 +24,7 @@ import (
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/apis/extensions/validation"
 	"k8s.io/kubernetes/pkg/fields"
+	genericapirequest "k8s.io/kubernetes/pkg/genericapiserver/api/request"
 	"k8s.io/kubernetes/pkg/labels"
 	"k8s.io/kubernetes/pkg/registry/generic"
 	"k8s.io/kubernetes/pkg/runtime"
@@ -46,13 +47,13 @@ func (networkPolicyStrategy) NamespaceScoped() bool {
 }
 
 // PrepareForCreate clears the status of an NetworkPolicy before creation.
-func (networkPolicyStrategy) PrepareForCreate(ctx api.Context, obj runtime.Object) {
+func (networkPolicyStrategy) PrepareForCreate(ctx genericapirequest.Context, obj runtime.Object) {
 	networkPolicy := obj.(*extensions.NetworkPolicy)
 	networkPolicy.Generation = 1
 }
 
 // PrepareForUpdate clears fields that are not allowed to be set by end users on update.
-func (networkPolicyStrategy) PrepareForUpdate(ctx api.Context, obj, old runtime.Object) {
+func (networkPolicyStrategy) PrepareForUpdate(ctx genericapirequest.Context, obj, old runtime.Object) {
 	newNetworkPolicy := obj.(*extensions.NetworkPolicy)
 	oldNetworkPolicy := old.(*extensions.NetworkPolicy)
 
@@ -65,7 +66,7 @@ func (networkPolicyStrategy) PrepareForUpdate(ctx api.Context, obj, old runtime.
 }
 
 // Validate validates a new NetworkPolicy.
-func (networkPolicyStrategy) Validate(ctx api.Context, obj runtime.Object) field.ErrorList {
+func (networkPolicyStrategy) Validate(ctx genericapirequest.Context, obj runtime.Object) field.ErrorList {
 	networkPolicy := obj.(*extensions.NetworkPolicy)
 	return validation.ValidateNetworkPolicy(networkPolicy)
 }
@@ -80,7 +81,7 @@ func (networkPolicyStrategy) AllowCreateOnUpdate() bool {
 }
 
 // ValidateUpdate is the default update validation for an end user.
-func (networkPolicyStrategy) ValidateUpdate(ctx api.Context, obj, old runtime.Object) field.ErrorList {
+func (networkPolicyStrategy) ValidateUpdate(ctx genericapirequest.Context, obj, old runtime.Object) field.ErrorList {
 	validationErrorList := validation.ValidateNetworkPolicy(obj.(*extensions.NetworkPolicy))
 	updateErrorList := validation.ValidateNetworkPolicyUpdate(obj.(*extensions.NetworkPolicy), old.(*extensions.NetworkPolicy))
 	return append(validationErrorList, updateErrorList...)
@@ -96,18 +97,21 @@ func NetworkPolicyToSelectableFields(networkPolicy *extensions.NetworkPolicy) fi
 	return generic.ObjectMetaFieldsSet(&networkPolicy.ObjectMeta, true)
 }
 
+// GetAttrs returns labels and fields of a given object for filtering purposes.
+func GetAttrs(obj runtime.Object) (labels.Set, fields.Set, error) {
+	networkPolicy, ok := obj.(*extensions.NetworkPolicy)
+	if !ok {
+		return nil, nil, fmt.Errorf("given object is not a NetworkPolicy.")
+	}
+	return labels.Set(networkPolicy.ObjectMeta.Labels), NetworkPolicyToSelectableFields(networkPolicy), nil
+}
+
 // MatchNetworkPolicy is the filter used by the generic etcd backend to watch events
 // from etcd to clients of the apiserver only interested in specific labels/fields.
 func MatchNetworkPolicy(label labels.Selector, field fields.Selector) storage.SelectionPredicate {
 	return storage.SelectionPredicate{
-		Label: label,
-		Field: field,
-		GetAttrs: func(obj runtime.Object) (labels.Set, fields.Set, error) {
-			networkPolicy, ok := obj.(*extensions.NetworkPolicy)
-			if !ok {
-				return nil, nil, fmt.Errorf("given object is not a NetworkPolicy.")
-			}
-			return labels.Set(networkPolicy.ObjectMeta.Labels), NetworkPolicyToSelectableFields(networkPolicy), nil
-		},
+		Label:    label,
+		Field:    field,
+		GetAttrs: GetAttrs,
 	}
 }

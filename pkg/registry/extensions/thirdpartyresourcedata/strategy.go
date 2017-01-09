@@ -24,6 +24,7 @@ import (
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/apis/extensions/validation"
 	"k8s.io/kubernetes/pkg/fields"
+	genericapirequest "k8s.io/kubernetes/pkg/genericapiserver/api/request"
 	"k8s.io/kubernetes/pkg/labels"
 	"k8s.io/kubernetes/pkg/runtime"
 	apistorage "k8s.io/kubernetes/pkg/storage"
@@ -48,10 +49,10 @@ func (strategy) NamespaceScoped() bool {
 	return true
 }
 
-func (strategy) PrepareForCreate(ctx api.Context, obj runtime.Object) {
+func (strategy) PrepareForCreate(ctx genericapirequest.Context, obj runtime.Object) {
 }
 
-func (strategy) Validate(ctx api.Context, obj runtime.Object) field.ErrorList {
+func (strategy) Validate(ctx genericapirequest.Context, obj runtime.Object) field.ErrorList {
 	return validation.ValidateThirdPartyResourceData(obj.(*extensions.ThirdPartyResourceData))
 }
 
@@ -63,10 +64,10 @@ func (strategy) AllowCreateOnUpdate() bool {
 	return false
 }
 
-func (strategy) PrepareForUpdate(ctx api.Context, obj, old runtime.Object) {
+func (strategy) PrepareForUpdate(ctx genericapirequest.Context, obj, old runtime.Object) {
 }
 
-func (strategy) ValidateUpdate(ctx api.Context, obj, old runtime.Object) field.ErrorList {
+func (strategy) ValidateUpdate(ctx genericapirequest.Context, obj, old runtime.Object) field.ErrorList {
 	return validation.ValidateThirdPartyResourceDataUpdate(obj.(*extensions.ThirdPartyResourceData), old.(*extensions.ThirdPartyResourceData))
 }
 
@@ -74,18 +75,21 @@ func (strategy) AllowUnconditionalUpdate() bool {
 	return true
 }
 
+// GetAttrs returns labels and fields of a given object for filtering purposes.
+func GetAttrs(obj runtime.Object) (labels.Set, fields.Set, error) {
+	tprd, ok := obj.(*extensions.ThirdPartyResourceData)
+	if !ok {
+		return nil, nil, fmt.Errorf("not a ThirdPartyResourceData")
+	}
+	return labels.Set(tprd.Labels), SelectableFields(tprd), nil
+}
+
 // Matcher returns a generic matcher for a given label and field selector.
 func Matcher(label labels.Selector, field fields.Selector) apistorage.SelectionPredicate {
 	return apistorage.SelectionPredicate{
-		Label: label,
-		Field: field,
-		GetAttrs: func(obj runtime.Object) (labels.Set, fields.Set, error) {
-			tprd, ok := obj.(*extensions.ThirdPartyResourceData)
-			if !ok {
-				return nil, nil, fmt.Errorf("not a ThirdPartyResourceData")
-			}
-			return labels.Set(tprd.Labels), SelectableFields(tprd), nil
-		},
+		Label:    label,
+		Field:    field,
+		GetAttrs: GetAttrs,
 	}
 }
 

@@ -22,8 +22,8 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/resource"
+	"k8s.io/kubernetes/pkg/api/v1"
 	"k8s.io/kubernetes/pkg/labels"
 	priorityutil "k8s.io/kubernetes/plugin/pkg/scheduler/algorithm/priorities/util"
 )
@@ -42,19 +42,19 @@ func deepEqualWithoutGeneration(t *testing.T, testcase int, actual, expected *No
 // on node level.
 func TestAssumePodScheduled(t *testing.T) {
 	nodeName := "node"
-	testPods := []*api.Pod{
-		makeBasePod(nodeName, "test", "100m", "500", []api.ContainerPort{{HostPort: 80}}),
-		makeBasePod(nodeName, "test-1", "100m", "500", []api.ContainerPort{{HostPort: 80}}),
-		makeBasePod(nodeName, "test-2", "200m", "1Ki", []api.ContainerPort{{HostPort: 8080}}),
-		makeBasePod(nodeName, "test-nonzero", "", "", []api.ContainerPort{{HostPort: 80}}),
+	testPods := []*v1.Pod{
+		makeBasePod(nodeName, "test", "100m", "500", []v1.ContainerPort{{HostPort: 80}}),
+		makeBasePod(nodeName, "test-1", "100m", "500", []v1.ContainerPort{{HostPort: 80}}),
+		makeBasePod(nodeName, "test-2", "200m", "1Ki", []v1.ContainerPort{{HostPort: 8080}}),
+		makeBasePod(nodeName, "test-nonzero", "", "", []v1.ContainerPort{{HostPort: 80}}),
 	}
 
 	tests := []struct {
-		pods []*api.Pod
+		pods []*v1.Pod
 
 		wNodeInfo *NodeInfo
 	}{{
-		pods: []*api.Pod{testPods[0]},
+		pods: []*v1.Pod{testPods[0]},
 		wNodeInfo: &NodeInfo{
 			requestedResource: &Resource{
 				MilliCPU: 100,
@@ -65,10 +65,10 @@ func TestAssumePodScheduled(t *testing.T) {
 				Memory:   500,
 			},
 			allocatableResource: &Resource{},
-			pods:                []*api.Pod{testPods[0]},
+			pods:                []*v1.Pod{testPods[0]},
 		},
 	}, {
-		pods: []*api.Pod{testPods[1], testPods[2]},
+		pods: []*v1.Pod{testPods[1], testPods[2]},
 		wNodeInfo: &NodeInfo{
 			requestedResource: &Resource{
 				MilliCPU: 300,
@@ -79,10 +79,10 @@ func TestAssumePodScheduled(t *testing.T) {
 				Memory:   1524,
 			},
 			allocatableResource: &Resource{},
-			pods:                []*api.Pod{testPods[1], testPods[2]},
+			pods:                []*v1.Pod{testPods[1], testPods[2]},
 		},
 	}, { // test non-zero request
-		pods: []*api.Pod{testPods[3]},
+		pods: []*v1.Pod{testPods[3]},
 		wNodeInfo: &NodeInfo{
 			requestedResource: &Resource{
 				MilliCPU: 0,
@@ -93,7 +93,7 @@ func TestAssumePodScheduled(t *testing.T) {
 				Memory:   priorityutil.DefaultMemoryRequest,
 			},
 			allocatableResource: &Resource{},
-			pods:                []*api.Pod{testPods[3]},
+			pods:                []*v1.Pod{testPods[3]},
 		},
 	}}
 
@@ -119,17 +119,24 @@ func TestAssumePodScheduled(t *testing.T) {
 }
 
 type testExpirePodStruct struct {
-	pod         *api.Pod
+	pod         *v1.Pod
 	assumedTime time.Time
+}
+
+func assumeAndFinishBinding(cache *schedulerCache, pod *v1.Pod, assumedTime time.Time) error {
+	if err := cache.AssumePod(pod); err != nil {
+		return err
+	}
+	return cache.finishBinding(pod, assumedTime)
 }
 
 // TestExpirePod tests that assumed pods will be removed if expired.
 // The removal will be reflected in node info.
 func TestExpirePod(t *testing.T) {
 	nodeName := "node"
-	testPods := []*api.Pod{
-		makeBasePod(nodeName, "test-1", "100m", "500", []api.ContainerPort{{HostPort: 80}}),
-		makeBasePod(nodeName, "test-2", "200m", "1Ki", []api.ContainerPort{{HostPort: 8080}}),
+	testPods := []*v1.Pod{
+		makeBasePod(nodeName, "test-1", "100m", "500", []v1.ContainerPort{{HostPort: 80}}),
+		makeBasePod(nodeName, "test-2", "200m", "1Ki", []v1.ContainerPort{{HostPort: 8080}}),
 	}
 	now := time.Now()
 	ttl := 10 * time.Second
@@ -160,7 +167,7 @@ func TestExpirePod(t *testing.T) {
 				Memory:   1024,
 			},
 			allocatableResource: &Resource{},
-			pods:                []*api.Pod{testPods[1]},
+			pods:                []*v1.Pod{testPods[1]},
 		},
 	}}
 
@@ -168,7 +175,7 @@ func TestExpirePod(t *testing.T) {
 		cache := newSchedulerCache(ttl, time.Second, nil)
 
 		for _, pod := range tt.pods {
-			if err := cache.assumePod(pod.pod, pod.assumedTime); err != nil {
+			if err := assumeAndFinishBinding(cache, pod.pod, pod.assumedTime); err != nil {
 				t.Fatalf("assumePod failed: %v", err)
 			}
 		}
@@ -186,18 +193,18 @@ func TestAddPodWillConfirm(t *testing.T) {
 	now := time.Now()
 	ttl := 10 * time.Second
 
-	testPods := []*api.Pod{
-		makeBasePod(nodeName, "test-1", "100m", "500", []api.ContainerPort{{HostPort: 80}}),
-		makeBasePod(nodeName, "test-2", "200m", "1Ki", []api.ContainerPort{{HostPort: 8080}}),
+	testPods := []*v1.Pod{
+		makeBasePod(nodeName, "test-1", "100m", "500", []v1.ContainerPort{{HostPort: 80}}),
+		makeBasePod(nodeName, "test-2", "200m", "1Ki", []v1.ContainerPort{{HostPort: 8080}}),
 	}
 	tests := []struct {
-		podsToAssume []*api.Pod
-		podsToAdd    []*api.Pod
+		podsToAssume []*v1.Pod
+		podsToAdd    []*v1.Pod
 
 		wNodeInfo *NodeInfo
 	}{{ // two pod were assumed at same time. But first one is called Add() and gets confirmed.
-		podsToAssume: []*api.Pod{testPods[0], testPods[1]},
-		podsToAdd:    []*api.Pod{testPods[0]},
+		podsToAssume: []*v1.Pod{testPods[0], testPods[1]},
+		podsToAdd:    []*v1.Pod{testPods[0]},
 		wNodeInfo: &NodeInfo{
 			requestedResource: &Resource{
 				MilliCPU: 100,
@@ -208,14 +215,14 @@ func TestAddPodWillConfirm(t *testing.T) {
 				Memory:   500,
 			},
 			allocatableResource: &Resource{},
-			pods:                []*api.Pod{testPods[0]},
+			pods:                []*v1.Pod{testPods[0]},
 		},
 	}}
 
 	for i, tt := range tests {
 		cache := newSchedulerCache(ttl, time.Second, nil)
 		for _, podToAssume := range tt.podsToAssume {
-			if err := cache.assumePod(podToAssume, now); err != nil {
+			if err := assumeAndFinishBinding(cache, podToAssume, now); err != nil {
 				t.Fatalf("assumePod failed: %v", err)
 			}
 		}
@@ -235,9 +242,9 @@ func TestAddPodWillConfirm(t *testing.T) {
 func TestAddPodAfterExpiration(t *testing.T) {
 	nodeName := "node"
 	ttl := 10 * time.Second
-	basePod := makeBasePod(nodeName, "test", "100m", "500", []api.ContainerPort{{HostPort: 80}})
+	basePod := makeBasePod(nodeName, "test", "100m", "500", []v1.ContainerPort{{HostPort: 80}})
 	tests := []struct {
-		pod *api.Pod
+		pod *v1.Pod
 
 		wNodeInfo *NodeInfo
 	}{{
@@ -252,14 +259,14 @@ func TestAddPodAfterExpiration(t *testing.T) {
 				Memory:   500,
 			},
 			allocatableResource: &Resource{},
-			pods:                []*api.Pod{basePod},
+			pods:                []*v1.Pod{basePod},
 		},
 	}}
 
 	now := time.Now()
 	for i, tt := range tests {
 		cache := newSchedulerCache(ttl, time.Second, nil)
-		if err := cache.assumePod(tt.pod, now); err != nil {
+		if err := assumeAndFinishBinding(cache, tt.pod, now); err != nil {
 			t.Fatalf("assumePod failed: %v", err)
 		}
 		cache.cleanupAssumedPods(now.Add(2 * ttl))
@@ -281,19 +288,19 @@ func TestAddPodAfterExpiration(t *testing.T) {
 func TestUpdatePod(t *testing.T) {
 	nodeName := "node"
 	ttl := 10 * time.Second
-	testPods := []*api.Pod{
-		makeBasePod(nodeName, "test", "100m", "500", []api.ContainerPort{{HostPort: 80}}),
-		makeBasePod(nodeName, "test", "200m", "1Ki", []api.ContainerPort{{HostPort: 8080}}),
+	testPods := []*v1.Pod{
+		makeBasePod(nodeName, "test", "100m", "500", []v1.ContainerPort{{HostPort: 80}}),
+		makeBasePod(nodeName, "test", "200m", "1Ki", []v1.ContainerPort{{HostPort: 8080}}),
 	}
 	tests := []struct {
-		podsToAssume []*api.Pod
-		podsToAdd    []*api.Pod
-		podsToUpdate []*api.Pod
+		podsToAssume []*v1.Pod
+		podsToAdd    []*v1.Pod
+		podsToUpdate []*v1.Pod
 
 		wNodeInfo []*NodeInfo
 	}{{ // add a pod and then update it twice
-		podsToAdd:    []*api.Pod{testPods[0]},
-		podsToUpdate: []*api.Pod{testPods[0], testPods[1], testPods[0]},
+		podsToAdd:    []*v1.Pod{testPods[0]},
+		podsToUpdate: []*v1.Pod{testPods[0], testPods[1], testPods[0]},
 		wNodeInfo: []*NodeInfo{{
 			requestedResource: &Resource{
 				MilliCPU: 200,
@@ -304,7 +311,7 @@ func TestUpdatePod(t *testing.T) {
 				Memory:   1024,
 			},
 			allocatableResource: &Resource{},
-			pods:                []*api.Pod{testPods[1]},
+			pods:                []*v1.Pod{testPods[1]},
 		}, {
 			requestedResource: &Resource{
 				MilliCPU: 100,
@@ -315,7 +322,7 @@ func TestUpdatePod(t *testing.T) {
 				Memory:   500,
 			},
 			allocatableResource: &Resource{},
-			pods:                []*api.Pod{testPods[0]},
+			pods:                []*v1.Pod{testPods[0]},
 		}},
 	}}
 
@@ -345,20 +352,20 @@ func TestUpdatePod(t *testing.T) {
 func TestExpireAddUpdatePod(t *testing.T) {
 	nodeName := "node"
 	ttl := 10 * time.Second
-	testPods := []*api.Pod{
-		makeBasePod(nodeName, "test", "100m", "500", []api.ContainerPort{{HostPort: 80}}),
-		makeBasePod(nodeName, "test", "200m", "1Ki", []api.ContainerPort{{HostPort: 8080}}),
+	testPods := []*v1.Pod{
+		makeBasePod(nodeName, "test", "100m", "500", []v1.ContainerPort{{HostPort: 80}}),
+		makeBasePod(nodeName, "test", "200m", "1Ki", []v1.ContainerPort{{HostPort: 8080}}),
 	}
 	tests := []struct {
-		podsToAssume []*api.Pod
-		podsToAdd    []*api.Pod
-		podsToUpdate []*api.Pod
+		podsToAssume []*v1.Pod
+		podsToAdd    []*v1.Pod
+		podsToUpdate []*v1.Pod
 
 		wNodeInfo []*NodeInfo
 	}{{ // Pod is assumed, expired, and added. Then it would be updated twice.
-		podsToAssume: []*api.Pod{testPods[0]},
-		podsToAdd:    []*api.Pod{testPods[0]},
-		podsToUpdate: []*api.Pod{testPods[0], testPods[1], testPods[0]},
+		podsToAssume: []*v1.Pod{testPods[0]},
+		podsToAdd:    []*v1.Pod{testPods[0]},
+		podsToUpdate: []*v1.Pod{testPods[0], testPods[1], testPods[0]},
 		wNodeInfo: []*NodeInfo{{
 			requestedResource: &Resource{
 				MilliCPU: 200,
@@ -369,7 +376,7 @@ func TestExpireAddUpdatePod(t *testing.T) {
 				Memory:   1024,
 			},
 			allocatableResource: &Resource{},
-			pods:                []*api.Pod{testPods[1]},
+			pods:                []*v1.Pod{testPods[1]},
 		}, {
 			requestedResource: &Resource{
 				MilliCPU: 100,
@@ -380,7 +387,7 @@ func TestExpireAddUpdatePod(t *testing.T) {
 				Memory:   500,
 			},
 			allocatableResource: &Resource{},
-			pods:                []*api.Pod{testPods[0]},
+			pods:                []*v1.Pod{testPods[0]},
 		}},
 	}}
 
@@ -388,7 +395,7 @@ func TestExpireAddUpdatePod(t *testing.T) {
 	for _, tt := range tests {
 		cache := newSchedulerCache(ttl, time.Second, nil)
 		for _, podToAssume := range tt.podsToAssume {
-			if err := cache.assumePod(podToAssume, now); err != nil {
+			if err := assumeAndFinishBinding(cache, podToAssume, now); err != nil {
 				t.Fatalf("assumePod failed: %v", err)
 			}
 		}
@@ -417,9 +424,9 @@ func TestExpireAddUpdatePod(t *testing.T) {
 // TestRemovePod tests after added pod is removed, its information should also be subtracted.
 func TestRemovePod(t *testing.T) {
 	nodeName := "node"
-	basePod := makeBasePod(nodeName, "test", "100m", "500", []api.ContainerPort{{HostPort: 80}})
+	basePod := makeBasePod(nodeName, "test", "100m", "500", []v1.ContainerPort{{HostPort: 80}})
 	tests := []struct {
-		pod *api.Pod
+		pod *v1.Pod
 
 		wNodeInfo *NodeInfo
 	}{{
@@ -434,7 +441,7 @@ func TestRemovePod(t *testing.T) {
 				Memory:   500,
 			},
 			allocatableResource: &Resource{},
-			pods:                []*api.Pod{basePod},
+			pods:                []*v1.Pod{basePod},
 		},
 	}}
 
@@ -459,11 +466,11 @@ func TestRemovePod(t *testing.T) {
 
 func TestForgetPod(t *testing.T) {
 	nodeName := "node"
-	basePod := makeBasePod(nodeName, "test", "100m", "500", []api.ContainerPort{{HostPort: 80}})
+	basePod := makeBasePod(nodeName, "test", "100m", "500", []v1.ContainerPort{{HostPort: 80}})
 	tests := []struct {
-		pods []*api.Pod
+		pods []*v1.Pod
 	}{{
-		pods: []*api.Pod{basePod},
+		pods: []*v1.Pod{basePod},
 	}}
 	now := time.Now()
 	ttl := 10 * time.Second
@@ -471,7 +478,7 @@ func TestForgetPod(t *testing.T) {
 	for i, tt := range tests {
 		cache := newSchedulerCache(ttl, time.Second, nil)
 		for _, pod := range tt.pods {
-			if err := cache.assumePod(pod, now); err != nil {
+			if err := assumeAndFinishBinding(cache, pod, now); err != nil {
 				t.Fatalf("assumePod failed: %v", err)
 			}
 		}
@@ -517,22 +524,22 @@ func benchmarkExpire(b *testing.B, podNum int) {
 	}
 }
 
-func makeBasePod(nodeName, objName, cpu, mem string, ports []api.ContainerPort) *api.Pod {
-	req := api.ResourceList{}
+func makeBasePod(nodeName, objName, cpu, mem string, ports []v1.ContainerPort) *v1.Pod {
+	req := v1.ResourceList{}
 	if cpu != "" {
-		req = api.ResourceList{
-			api.ResourceCPU:    resource.MustParse(cpu),
-			api.ResourceMemory: resource.MustParse(mem),
+		req = v1.ResourceList{
+			v1.ResourceCPU:    resource.MustParse(cpu),
+			v1.ResourceMemory: resource.MustParse(mem),
 		}
 	}
-	return &api.Pod{
-		ObjectMeta: api.ObjectMeta{
+	return &v1.Pod{
+		ObjectMeta: v1.ObjectMeta{
 			Namespace: "node_info_cache_test",
 			Name:      objName,
 		},
-		Spec: api.PodSpec{
-			Containers: []api.Container{{
-				Resources: api.ResourceRequirements{
+		Spec: v1.PodSpec{
+			Containers: []v1.Container{{
+				Resources: v1.ResourceRequirements{
 					Requests: req,
 				},
 				Ports: ports,
@@ -565,7 +572,7 @@ func setupCacheWithAssumedPods(b *testing.B, podNum int, assumedTime time.Time) 
 		objName := fmt.Sprintf("%s-pod-%d", nodeName, i%10)
 		pod := makeBasePod(nodeName, objName, "0", "0", nil)
 
-		err := cache.assumePod(pod, assumedTime)
+		err := assumeAndFinishBinding(cache, pod, assumedTime)
 		if err != nil {
 			b.Fatalf("assumePod failed: %v", err)
 		}

@@ -17,16 +17,21 @@ limitations under the License.
 package v1
 
 import (
-	"k8s.io/kubernetes/pkg/api/unversioned"
+	metav1 "k8s.io/kubernetes/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/runtime"
-	versionedwatch "k8s.io/kubernetes/pkg/watch/versioned"
+	"k8s.io/kubernetes/pkg/runtime/schema"
 )
 
 // GroupName is the group name use in this package
 const GroupName = ""
 
 // SchemeGroupVersion is group version used to register these objects
-var SchemeGroupVersion = unversioned.GroupVersion{Group: GroupName, Version: "v1"}
+var SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: "v1"}
+
+// Resource takes an unqualified resource and returns a Group qualified GroupResource
+func Resource(resource string) schema.GroupResource {
+	return SchemeGroupVersion.WithResource(resource).GroupResource()
+}
 
 var (
 	SchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes, addDefaultingFuncs, addConversionFuncs, addFastPathConversionFuncs)
@@ -70,7 +75,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&PersistentVolumeClaim{},
 		&PersistentVolumeClaimList{},
 		&DeleteOptions{},
-		&ExportOptions{},
+		&metav1.ExportOptions{},
+		&metav1.GetOptions{},
 		&ListOptions{},
 		&PodAttachOptions{},
 		&PodLogOptions{},
@@ -85,9 +91,9 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	)
 
 	// Add common types
-	scheme.AddKnownTypes(SchemeGroupVersion, &unversioned.Status{})
+	scheme.AddKnownTypes(SchemeGroupVersion, &metav1.Status{})
 
 	// Add the watch version that applies
-	versionedwatch.AddToGroupVersion(scheme, SchemeGroupVersion)
+	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil
 }

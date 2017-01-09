@@ -21,12 +21,13 @@ import (
 
 	"k8s.io/kubernetes/pkg/api"
 	apitesting "k8s.io/kubernetes/pkg/api/testing"
-	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apimachinery/registered"
+	metav1 "k8s.io/kubernetes/pkg/apis/meta/v1"
+	genericapirequest "k8s.io/kubernetes/pkg/genericapiserver/api/request"
 )
 
 func TestNamespaceStrategy(t *testing.T) {
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	if Strategy.NamespaceScoped() {
 		t.Errorf("Namespaces should not be namespace scoped")
 	}
@@ -66,14 +67,14 @@ func TestNamespaceStrategy(t *testing.T) {
 }
 
 func TestNamespaceStatusStrategy(t *testing.T) {
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	if StatusStrategy.NamespaceScoped() {
 		t.Errorf("Namespaces should not be namespace scoped")
 	}
 	if StatusStrategy.AllowCreateOnUpdate() {
 		t.Errorf("Namespaces should not allow create on update")
 	}
-	now := unversioned.Now()
+	now := metav1.Now()
 	oldNamespace := &api.Namespace{
 		ObjectMeta: api.ObjectMeta{Name: "foo", ResourceVersion: "10", DeletionTimestamp: &now},
 		Spec:       api.NamespaceSpec{Finalizers: []api.FinalizerName{"kubernetes"}},
@@ -100,7 +101,7 @@ func TestNamespaceStatusStrategy(t *testing.T) {
 }
 
 func TestNamespaceFinalizeStrategy(t *testing.T) {
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	if FinalizeStrategy.NamespaceScoped() {
 		t.Errorf("Namespaces should not be namespace scoped")
 	}

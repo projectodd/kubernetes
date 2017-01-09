@@ -21,12 +21,12 @@ import (
 
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/rest"
-	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/extensions"
+	metav1 "k8s.io/kubernetes/pkg/apis/meta/v1"
+	genericapirequest "k8s.io/kubernetes/pkg/genericapiserver/api/request"
 	"k8s.io/kubernetes/pkg/registry/generic"
 	"k8s.io/kubernetes/pkg/registry/registrytest"
 	"k8s.io/kubernetes/pkg/storage"
-	"k8s.io/kubernetes/pkg/storage/etcd/etcdtest"
 	etcdtesting "k8s.io/kubernetes/pkg/storage/etcd/testing"
 	"k8s.io/kubernetes/pkg/storage/storagebackend/factory"
 )
@@ -81,7 +81,7 @@ var validScale = extensions.Scale{
 	},
 	Status: extensions.ScaleStatus{
 		Replicas: 0,
-		Selector: &unversioned.LabelSelector{
+		Selector: &metav1.LabelSelector{
 			MatchLabels: validPodTemplate.Template.Labels,
 		},
 	},
@@ -91,12 +91,12 @@ func TestGet(t *testing.T) {
 	storage, _, si, destroyFunc := newStorage(t)
 	defer destroyFunc()
 
-	ctx := api.WithNamespace(api.NewContext(), "test")
-	key := etcdtest.AddPrefix("/controllers/test/foo")
+	ctx := genericapirequest.WithNamespace(genericapirequest.NewContext(), "test")
+	key := "/controllers/test/foo"
 	if err := si.Create(ctx, key, &validController, nil, 0); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	obj, err := storage.Get(ctx, "foo")
+	obj, err := storage.Get(ctx, "foo", &metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -110,8 +110,8 @@ func TestUpdate(t *testing.T) {
 	storage, _, si, destroyFunc := newStorage(t)
 	defer destroyFunc()
 
-	ctx := api.WithNamespace(api.NewContext(), "test")
-	key := etcdtest.AddPrefix("/controllers/test/foo")
+	ctx := genericapirequest.WithNamespace(genericapirequest.NewContext(), "test")
+	key := "/controllers/test/foo"
 	if err := si.Create(ctx, key, &validController, nil, 0); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -126,7 +126,7 @@ func TestUpdate(t *testing.T) {
 	if _, _, err := storage.Update(ctx, update.Name, rest.DefaultUpdatedObjectInfo(&update, api.Scheme)); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	obj, err := storage.Get(ctx, "foo")
+	obj, err := storage.Get(ctx, "foo", &metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

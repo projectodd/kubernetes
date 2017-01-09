@@ -30,14 +30,15 @@ import (
 	"k8s.io/kubernetes/pkg/api/errors"
 	"k8s.io/kubernetes/pkg/api/testapi"
 	apitesting "k8s.io/kubernetes/pkg/api/testing"
-	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apimachinery/registered"
+	metav1 "k8s.io/kubernetes/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
 	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/fake"
 	"k8s.io/kubernetes/pkg/client/restclient"
 	manualfake "k8s.io/kubernetes/pkg/client/restclient/fake"
 	testcore "k8s.io/kubernetes/pkg/client/testing/core"
 	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/runtime/schema"
 	"k8s.io/kubernetes/pkg/util/intstr"
 	"k8s.io/kubernetes/pkg/util/sets"
 )
@@ -1208,7 +1209,7 @@ func TestRollingUpdater_cleanupWithClients_Rename(t *testing.T) {
 		case testcore.CreateAction:
 			return true, nil, nil
 		case testcore.GetAction:
-			return true, nil, errors.NewNotFound(unversioned.GroupResource{}, "")
+			return true, nil, errors.NewNotFound(schema.GroupResource{}, "")
 		case testcore.DeleteAction:
 			return true, nil, nil
 		}
@@ -1612,8 +1613,8 @@ func TestAddDeploymentHash(t *testing.T) {
 
 func TestRollingUpdater_readyPods(t *testing.T) {
 	count := 0
-	now := unversioned.Date(2016, time.April, 1, 1, 0, 0, 0, time.UTC)
-	mkpod := func(owner *api.ReplicationController, ready bool, readyTime unversioned.Time) *api.Pod {
+	now := metav1.Date(2016, time.April, 1, 1, 0, 0, 0, time.UTC)
+	mkpod := func(owner *api.ReplicationController, ready bool, readyTime metav1.Time) *api.Pod {
 		count = count + 1
 		labels := map[string]string{}
 		for k, v := range owner.Spec.Selector {
@@ -1650,11 +1651,15 @@ func TestRollingUpdater_readyPods(t *testing.T) {
 		// pods owned by the rcs; indicate whether they're ready
 		oldPods []bool
 		newPods []bool
+		// deletions - should be less then the size of the respective slice above
+		// eg. len(oldPods) > oldPodDeletions && len(newPods) > newPodDeletions
+		oldPodDeletions int
+		newPodDeletions int
 		// specify additional time to wait for deployment to wait on top of the
 		// pod ready time
 		minReadySeconds int32
-		podReadyTimeFn  func() unversioned.Time
-		nowFn           func() unversioned.Time
+		podReadyTimeFn  func() metav1.Time
+		nowFn           func() metav1.Time
 	}{
 		{
 			oldRc:    oldRc(4, 4),
@@ -1710,7 +1715,7 @@ func TestRollingUpdater_readyPods(t *testing.T) {
 				true,
 			},
 			minReadySeconds: 5,
-			nowFn:           func() unversioned.Time { return now },
+			nowFn:           func() metav1.Time { return now },
 		},
 		{
 			oldRc:    oldRc(4, 4),
@@ -1724,15 +1729,27 @@ func TestRollingUpdater_readyPods(t *testing.T) {
 				true,
 			},
 			minReadySeconds: 5,
-			nowFn:           func() unversioned.Time { return unversioned.Time{Time: now.Add(time.Duration(6 * time.Second))} },
-			podReadyTimeFn:  func() unversioned.Time { return now },
+			nowFn:           func() metav1.Time { return metav1.Time{Time: now.Add(time.Duration(6 * time.Second))} },
+			podReadyTimeFn:  func() metav1.Time { return now },
+		},
+		{
+			oldRc:    oldRc(4, 4),
+			newRc:    newRc(4, 4),
+			oldReady: 2,
+			newReady: 0,
+			oldPods: []bool{
+				// All old pods are ready
+				true, true, true, true,
+			},
+			// Two of them have been marked for deletion though
+			oldPodDeletions: 2,
 		},
 	}
 
 	for i, test := range tests {
 		t.Logf("evaluating test %d", i)
 		if test.nowFn == nil {
-			test.nowFn = func() unversioned.Time { return now }
+			test.nowFn = func() metav1.Time { return now }
 		}
 		if test.podReadyTimeFn == nil {
 			test.podReadyTimeFn = test.nowFn
@@ -1740,10 +1757,22 @@ func TestRollingUpdater_readyPods(t *testing.T) {
 		// Populate the fake client with pods associated with their owners.
 		pods := []runtime.Object{}
 		for _, ready := range test.oldPods {
-			pods = append(pods, mkpod(test.oldRc, ready, test.podReadyTimeFn()))
+			pod := mkpod(test.oldRc, ready, test.podReadyTimeFn())
+			if test.oldPodDeletions > 0 {
+				now := metav1.Now()
+				pod.DeletionTimestamp = &now
+				test.oldPodDeletions--
+			}
+			pods = append(pods, pod)
 		}
 		for _, ready := range test.newPods {
-			pods = append(pods, mkpod(test.newRc, ready, test.podReadyTimeFn()))
+			pod := mkpod(test.newRc, ready, test.podReadyTimeFn())
+			if test.newPodDeletions > 0 {
+				now := metav1.Now()
+				pod.DeletionTimestamp = &now
+				test.newPodDeletions--
+			}
+			pods = append(pods, pod)
 		}
 		client := fake.NewSimpleClientset(pods...)
 

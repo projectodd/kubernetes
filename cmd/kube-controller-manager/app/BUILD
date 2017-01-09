@@ -4,32 +4,39 @@ licenses(["notice"])
 
 load(
     "@io_bazel_rules_go//go:def.bzl",
-    "go_binary",
     "go_library",
-    "go_test",
-    "cgo_library",
 )
 
 go_library(
     name = "go_default_library",
     srcs = [
+        "apps.go",
+        "autoscaling.go",
+        "batch.go",
+        "certificates.go",
         "controllermanager.go",
+        "core.go",
+        "extensions.go",
         "plugins.go",
+        "policy.go",
     ],
     tags = ["automanaged"],
     deps = [
         "//cmd/kube-controller-manager/app/options:go_default_library",
         "//pkg/api:go_default_library",
-        "//pkg/api/unversioned:go_default_library",
+        "//pkg/api/v1:go_default_library",
         "//pkg/apimachinery/registered:go_default_library",
         "//pkg/apis/batch:go_default_library",
         "//pkg/apis/componentconfig:go_default_library",
-        "//pkg/client/clientset_generated/internalclientset:go_default_library",
-        "//pkg/client/clientset_generated/internalclientset/typed/core/internalversion:go_default_library",
+        "//pkg/apis/extensions:go_default_library",
+        "//pkg/apis/meta/v1:go_default_library",
+        "//pkg/client/clientset_generated/clientset:go_default_library",
+        "//pkg/client/clientset_generated/clientset/typed/core/v1:go_default_library",
         "//pkg/client/leaderelection:go_default_library",
         "//pkg/client/leaderelection/resourcelock:go_default_library",
         "//pkg/client/record:go_default_library",
         "//pkg/client/restclient:go_default_library",
+        "//pkg/client/typed/discovery:go_default_library",
         "//pkg/client/typed/dynamic:go_default_library",
         "//pkg/client/unversioned/clientcmd:go_default_library",
         "//pkg/cloudprovider:go_default_library",
@@ -65,8 +72,8 @@ go_library(
         "//pkg/controller/serviceaccount:go_default_library",
         "//pkg/controller/volume/attachdetach:go_default_library",
         "//pkg/controller/volume/persistentvolume:go_default_library",
-        "//pkg/healthz:go_default_library",
         "//pkg/quota/install:go_default_library",
+        "//pkg/runtime/schema:go_default_library",
         "//pkg/runtime/serializer:go_default_library",
         "//pkg/serviceaccount:go_default_library",
         "//pkg/util/cert:go_default_library",
@@ -92,5 +99,22 @@ go_library(
         "//vendor:github.com/prometheus/client_golang/prometheus",
         "//vendor:github.com/spf13/cobra",
         "//vendor:github.com/spf13/pflag",
+        "//vendor:k8s.io/apiserver/pkg/healthz",
     ],
+)
+
+filegroup(
+    name = "package-srcs",
+    srcs = glob(["**"]),
+    tags = ["automanaged"],
+    visibility = ["//visibility:private"],
+)
+
+filegroup(
+    name = "all-srcs",
+    srcs = [
+        ":package-srcs",
+        "//cmd/kube-controller-manager/app/options:all-srcs",
+    ],
+    tags = ["automanaged"],
 )

@@ -26,6 +26,8 @@ import (
 	"k8s.io/kubernetes/pkg/api/errors"
 	"k8s.io/kubernetes/pkg/api/rest"
 	"k8s.io/kubernetes/pkg/api/service"
+	metav1 "k8s.io/kubernetes/pkg/apis/meta/v1"
+	genericapirequest "k8s.io/kubernetes/pkg/genericapiserver/api/request"
 	"k8s.io/kubernetes/pkg/registry/core/service/ipallocator"
 	"k8s.io/kubernetes/pkg/registry/core/service/portallocator"
 	"k8s.io/kubernetes/pkg/registry/registrytest"
@@ -89,7 +91,7 @@ func TestServiceRegistryCreate(t *testing.T) {
 			}},
 		},
 	}
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	created_svc, err := storage.Create(ctx, svc)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -107,7 +109,7 @@ func TestServiceRegistryCreate(t *testing.T) {
 	if !makeIPNet(t).Contains(net.ParseIP(created_service.Spec.ClusterIP)) {
 		t.Errorf("Unexpected ClusterIP: %s", created_service.Spec.ClusterIP)
 	}
-	srv, err := registry.GetService(ctx, svc.Name)
+	srv, err := registry.GetService(ctx, svc.Name, &metav1.GetOptions{})
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -208,7 +210,7 @@ func TestServiceRegistryCreateMultiNodePortsService(t *testing.T) {
 		},
 	}
 
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	for _, test := range testCases {
 		created_svc, err := storage.Create(ctx, test.svc)
 		if err != nil {
@@ -225,7 +227,7 @@ func TestServiceRegistryCreateMultiNodePortsService(t *testing.T) {
 		if !reflect.DeepEqual(serviceNodePorts, test.expectNodePorts) {
 			t.Errorf("Expected %v, but got %v", test.expectNodePorts, serviceNodePorts)
 		}
-		srv, err := registry.GetService(ctx, test.name)
+		srv, err := registry.GetService(ctx, test.name, &metav1.GetOptions{})
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
@@ -275,7 +277,7 @@ func TestServiceStorageValidatesCreate(t *testing.T) {
 			},
 		},
 	}
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	for _, failureCase := range failureCases {
 		c, err := storage.Create(ctx, &failureCase)
 		if c != nil {
@@ -288,7 +290,7 @@ func TestServiceStorageValidatesCreate(t *testing.T) {
 }
 
 func TestServiceRegistryUpdate(t *testing.T) {
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	storage, registry := NewTestREST(t, nil)
 	svc, err := registry.CreateService(ctx, &api.Service{
 		ObjectMeta: api.ObjectMeta{Name: "foo", ResourceVersion: "1", Namespace: api.NamespaceDefault},
@@ -339,7 +341,7 @@ func TestServiceRegistryUpdate(t *testing.T) {
 }
 
 func TestServiceStorageValidatesUpdate(t *testing.T) {
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	storage, registry := NewTestREST(t, nil)
 	registry.CreateService(ctx, &api.Service{
 		ObjectMeta: api.ObjectMeta{Name: "foo"},
@@ -391,7 +393,7 @@ func TestServiceStorageValidatesUpdate(t *testing.T) {
 }
 
 func TestServiceRegistryExternalService(t *testing.T) {
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	storage, registry := NewTestREST(t, nil)
 	svc := &api.Service{
 		ObjectMeta: api.ObjectMeta{Name: "foo"},
@@ -410,7 +412,7 @@ func TestServiceRegistryExternalService(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to create service: %#v", err)
 	}
-	srv, err := registry.GetService(ctx, svc.Name)
+	srv, err := registry.GetService(ctx, svc.Name, &metav1.GetOptions{})
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -420,7 +422,7 @@ func TestServiceRegistryExternalService(t *testing.T) {
 }
 
 func TestServiceRegistryDelete(t *testing.T) {
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	storage, registry := NewTestREST(t, nil)
 	svc := &api.Service{
 		ObjectMeta: api.ObjectMeta{Name: "foo"},
@@ -442,7 +444,7 @@ func TestServiceRegistryDelete(t *testing.T) {
 }
 
 func TestServiceRegistryDeleteExternal(t *testing.T) {
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	storage, registry := NewTestREST(t, nil)
 	svc := &api.Service{
 		ObjectMeta: api.ObjectMeta{Name: "foo"},
@@ -464,7 +466,7 @@ func TestServiceRegistryDeleteExternal(t *testing.T) {
 }
 
 func TestServiceRegistryUpdateExternalService(t *testing.T) {
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	storage, _ := NewTestREST(t, nil)
 
 	// Create non-external load balancer.
@@ -501,7 +503,7 @@ func TestServiceRegistryUpdateExternalService(t *testing.T) {
 }
 
 func TestServiceRegistryUpdateMultiPortExternalService(t *testing.T) {
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	storage, _ := NewTestREST(t, nil)
 
 	// Create external load balancer.
@@ -537,7 +539,7 @@ func TestServiceRegistryUpdateMultiPortExternalService(t *testing.T) {
 }
 
 func TestServiceRegistryGet(t *testing.T) {
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	storage, registry := NewTestREST(t, nil)
 	registry.CreateService(ctx, &api.Service{
 		ObjectMeta: api.ObjectMeta{Name: "foo"},
@@ -545,14 +547,14 @@ func TestServiceRegistryGet(t *testing.T) {
 			Selector: map[string]string{"bar": "baz"},
 		},
 	})
-	storage.Get(ctx, "foo")
+	storage.Get(ctx, "foo", &metav1.GetOptions{})
 	if e, a := "foo", registry.GottenID; e != a {
 		t.Errorf("Expected %v, but got %v", e, a)
 	}
 }
 
 func TestServiceRegistryResourceLocation(t *testing.T) {
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	endpoints := &api.EndpointsList{
 		Items: []api.Endpoints{
 			{
@@ -673,7 +675,7 @@ func TestServiceRegistryResourceLocation(t *testing.T) {
 }
 
 func TestServiceRegistryList(t *testing.T) {
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	storage, registry := NewTestREST(t, nil)
 	registry.CreateService(ctx, &api.Service{
 		ObjectMeta: api.ObjectMeta{Name: "foo", Namespace: api.NamespaceDefault},
@@ -720,7 +722,7 @@ func TestServiceRegistryIPAllocation(t *testing.T) {
 			}},
 		},
 	}
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	created_svc1, _ := storage.Create(ctx, svc1)
 	created_service_1 := created_svc1.(*api.Service)
 	if created_service_1.Name != "foo" {
@@ -742,7 +744,7 @@ func TestServiceRegistryIPAllocation(t *testing.T) {
 				TargetPort: intstr.FromInt(6502),
 			}},
 		}}
-	ctx = api.NewDefaultContext()
+	ctx = genericapirequest.NewDefaultContext()
 	created_svc2, _ := storage.Create(ctx, svc2)
 	created_service_2 := created_svc2.(*api.Service)
 	if created_service_2.Name != "bar" {
@@ -775,7 +777,7 @@ func TestServiceRegistryIPAllocation(t *testing.T) {
 			}},
 		},
 	}
-	ctx = api.NewDefaultContext()
+	ctx = genericapirequest.NewDefaultContext()
 	created_svc3, err := storage.Create(ctx, svc3)
 	if err != nil {
 		t.Fatal(err)
@@ -802,7 +804,7 @@ func TestServiceRegistryIPReallocation(t *testing.T) {
 			}},
 		},
 	}
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	created_svc1, _ := storage.Create(ctx, svc1)
 	created_service_1 := created_svc1.(*api.Service)
 	if created_service_1.Name != "foo" {
@@ -830,7 +832,7 @@ func TestServiceRegistryIPReallocation(t *testing.T) {
 			}},
 		},
 	}
-	ctx = api.NewDefaultContext()
+	ctx = genericapirequest.NewDefaultContext()
 	created_svc2, _ := storage.Create(ctx, svc2)
 	created_service_2 := created_svc2.(*api.Service)
 	if created_service_2.Name != "bar" {
@@ -857,7 +859,7 @@ func TestServiceRegistryIPUpdate(t *testing.T) {
 			}},
 		},
 	}
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	created_svc, _ := storage.Create(ctx, svc)
 	created_service := created_svc.(*api.Service)
 	if created_service.Spec.Ports[0].Port != 6502 {
@@ -911,7 +913,7 @@ func TestServiceRegistryIPLoadBalancer(t *testing.T) {
 			}},
 		},
 	}
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	created_svc, _ := storage.Create(ctx, svc)
 	created_service := created_svc.(*api.Service)
 	if created_service.Spec.Ports[0].Port != 6502 {
@@ -935,7 +937,7 @@ func TestUpdateServiceWithConflictingNamespace(t *testing.T) {
 		ObjectMeta: api.ObjectMeta{Name: "test", Namespace: "not-default"},
 	}
 
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	obj, created, err := storage.Update(ctx, service.Name, rest.DefaultUpdatedObjectInfo(service, api.Scheme))
 	if obj != nil || created {
 		t.Error("Expected a nil object, but we got a value or created was true")
@@ -950,7 +952,7 @@ func TestUpdateServiceWithConflictingNamespace(t *testing.T) {
 // Validate allocation of a nodePort when the externalTraffic=OnlyLocal annotation is set
 // and type is LoadBalancer
 func TestServiceRegistryExternalTrafficAnnotationHealthCheckNodePortAllocation(t *testing.T) {
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	storage, _ := NewTestREST(t, nil)
 	svc := &api.Service{
 		ObjectMeta: api.ObjectMeta{Name: "external-lb-esipp",
@@ -987,7 +989,7 @@ func TestServiceRegistryExternalTrafficAnnotationHealthCheckNodePortAllocation(t
 // Validate using the user specified nodePort when the externalTraffic=OnlyLocal annotation is set
 // and type is LoadBalancer
 func TestServiceRegistryExternalTrafficBetaAnnotationHealthCheckNodePortUserAllocation(t *testing.T) {
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	storage, _ := NewTestREST(t, nil)
 	svc := &api.Service{
 		ObjectMeta: api.ObjectMeta{Name: "external-lb-esipp",
@@ -1026,7 +1028,7 @@ func TestServiceRegistryExternalTrafficBetaAnnotationHealthCheckNodePortUserAllo
 
 // Validate that the service creation fails when the requested port number is -1
 func TestServiceRegistryExternalTrafficAnnotationNegative(t *testing.T) {
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	storage, _ := NewTestREST(t, nil)
 	svc := &api.Service{
 		ObjectMeta: api.ObjectMeta{Name: "external-lb-esipp",
@@ -1055,7 +1057,7 @@ func TestServiceRegistryExternalTrafficAnnotationNegative(t *testing.T) {
 
 // Validate that the health check nodePort is not allocated when the externalTraffic annotation is !"OnlyLocal"
 func TestServiceRegistryExternalTrafficAnnotationGlobal(t *testing.T) {
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	storage, _ := NewTestREST(t, nil)
 	svc := &api.Service{
 		ObjectMeta: api.ObjectMeta{Name: "external-lb-esipp",
@@ -1092,7 +1094,7 @@ func TestServiceRegistryExternalTrafficAnnotationGlobal(t *testing.T) {
 
 // Validate that the health check nodePort is not allocated when service type is ClusterIP
 func TestServiceRegistryExternalTrafficAnnotationClusterIP(t *testing.T) {
-	ctx := api.NewDefaultContext()
+	ctx := genericapirequest.NewDefaultContext()
 	storage, _ := NewTestREST(t, nil)
 	svc := &api.Service{
 		ObjectMeta: api.ObjectMeta{Name: "external-lb-esipp",
