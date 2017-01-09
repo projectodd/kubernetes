@@ -15,10 +15,10 @@
 package kubesh
 
 import (
-	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/kubectl"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
 	"k8s.io/kubernetes/pkg/kubectl/resource"
+	"k8s.io/kubernetes/pkg/runtime/schema"
 )
 
 type Resourceful struct {
@@ -68,7 +68,7 @@ func (rf Resourceful) Lookup(args []string) ([]Resource, error) {
 		return nil, err
 	}
 
-	obj, err := resource.AsVersionedObject(infos, true, unversioned.GroupVersion{}, f.JSONEncoder())
+	obj, err := resource.AsVersionedObject(infos, true, schema.GroupVersion{}, f.JSONEncoder())
 	if err != nil {
 		return nil, err
 	}
