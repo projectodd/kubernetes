@@ -17,6 +17,10 @@ other Kubernetes command:
 The `kubesh` binary should then reside in a platform-specific
 directory beneath `../../_output/dockerized/bin`
 
+### Sample Session
+
+![](http://i.imgur.com/Lg1zAnw.gif)
+
 ### Readline Shortcuts
 
 * Normal mode
